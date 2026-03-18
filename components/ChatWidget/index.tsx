@@ -7,7 +7,6 @@ export default function ChatWidget() {
   const [isOpen, setIsOpen] = useState(false);
   const [fabVisible, setFabVisible] = useState(false);
   const fabRef = useRef<HTMLButtonElement>(null);
-  const firstInputRef = useRef<HTMLInputElement | HTMLButtonElement | null>(null);
 
   // Reveal FAB after user scrolls past the hero (100px threshold)
   useEffect(() => {
@@ -167,7 +166,7 @@ export default function ChatWidget() {
         </div>
 
         {/* Chat engine — conditionally mounted so state resets on close */}
-        {isOpen && <ChatEngine onClose={handleClose} firstInputRef={firstInputRef} />}
+        {isOpen && <ChatEngine onClose={handleClose} />}
       </div>
 
       <style>{`

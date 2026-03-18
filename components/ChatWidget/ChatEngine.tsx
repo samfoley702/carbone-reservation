@@ -1,6 +1,6 @@
 "use client";
 
-import React, { memo, useEffect, useMemo, useReducer, useRef } from "react";
+import React, { memo, useEffect, useReducer, useRef } from "react";
 import { ChatMessage, ChatStep } from "@/types/chat";
 import { ReservationData, LOCATIONS, TIME_SLOTS } from "@/types/reservation";
 import { validateStep } from "@/lib/validateReservation";
@@ -159,7 +159,6 @@ const ChatBubble = memo(function ChatBubble({ message }: { message: ChatMessage 
 
 interface ChatEngineProps {
   onClose: () => void;
-  firstInputRef: React.MutableRefObject<HTMLInputElement | HTMLButtonElement | null>;
 }
 
 // ── Main Component ────────────────────────────────────────────────────────────
@@ -219,6 +218,20 @@ export default function ChatEngine({ onClose }: ChatEngineProps) {
     }
   }, [state.data.location, state.step]);
 
+  // Date auto-advance (300ms after selection, step 4)
+  useEffect(() => {
+    if (state.step === 4 && state.data.date) {
+      const timer = setTimeout(() => {
+        if (!mountedRef.current) return;
+        const userText = state.data.date!.toLocaleDateString("en-US", {
+          weekday: "long", month: "long", day: "numeric", year: "numeric",
+        });
+        dispatch({ type: "STEP_COMPLETE", userText, nextStep: 5 });
+      }, 300);
+      return () => clearTimeout(timer);
+    }
+  }, [state.data.date, state.step]);
+
   // ── Handlers ───────────────────────────────────────────────────────────────
 
   const update = (updates: Partial<ReservationData>) =>
@@ -243,6 +256,7 @@ export default function ChatEngine({ onClose }: ChatEngineProps) {
   };
 
   const handleSubmit = async () => {
+    if (state.submitting) return;
     dispatch({ type: "SUBMIT_START" });
     abortControllerRef.current = new AbortController();
     try {
@@ -288,10 +302,9 @@ export default function ChatEngine({ onClose }: ChatEngineProps) {
     }
   };
 
-  // ── Review rows (step 7 + success) ────────────────────────────────────────
+  // ── Review rows (step 7) ───────────────────────────────────────────────────
 
-  const reviewRows = useMemo(() => {
-    const { data } = state;
+  const buildReviewRows = (data: ReservationData) => {
     const formatDate = (d: Date | null) =>
       d ? d.toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric", year: "numeric" }) : "—";
     const formatTime = (slot: string | null) => {
@@ -307,7 +320,7 @@ export default function ChatEngine({ onClose }: ChatEngineProps) {
       { label: "Time", value: formatTime(data.timeSlot) },
       ...(data.specialNote ? [{ label: "Notes", value: data.specialNote }] : []),
     ];
-  }, [state.data]); // eslint-disable-line react-hooks/exhaustive-deps
+  };
 
   // ── Input zone renderer ────────────────────────────────────────────────────
 
@@ -412,18 +425,7 @@ export default function ChatEngine({ onClose }: ChatEngineProps) {
           <div style={{ display: "flex", justifyContent: "center" }}>
             <Calendar
               selected={data.date}
-              onSelect={(date) => {
-                update({ date });
-                // Auto-advance after selection
-                setTimeout(() => {
-                  if (mountedRef.current) {
-                    const userText = date.toLocaleDateString("en-US", {
-                      weekday: "long", month: "long", day: "numeric", year: "numeric",
-                    });
-                    dispatch({ type: "STEP_COMPLETE", userText, nextStep: 5 });
-                  }
-                }, 300);
-              }}
+              onSelect={(date) => update({ date })}
             />
           </div>
         );
@@ -517,19 +519,20 @@ export default function ChatEngine({ onClose }: ChatEngineProps) {
           </div>
         );
 
-      case 7:
+      case 7: {
+        const rows = buildReviewRows(state.data);
         return (
           <div style={{ border: "1px solid var(--border)", padding: "1rem" }}>
-            {reviewRows.map((row, i) => (
+            {rows.map((row, i) => (
               <div
                 key={row.label}
                 style={{
                   display: "flex",
                   justifyContent: "space-between",
                   gap: "0.75rem",
-                  paddingBottom: i < reviewRows.length - 1 ? "0.65rem" : 0,
-                  marginBottom: i < reviewRows.length - 1 ? "0.65rem" : 0,
-                  borderBottom: i < reviewRows.length - 1 ? "1px solid var(--border)" : "none",
+                  paddingBottom: i < rows.length - 1 ? "0.65rem" : 0,
+                  marginBottom: i < rows.length - 1 ? "0.65rem" : 0,
+                  borderBottom: i < rows.length - 1 ? "1px solid var(--border)" : "none",
                 }}
               >
                 <span style={{ fontFamily: "var(--font-oswald), sans-serif", fontSize: "0.55rem", letterSpacing: "0.18em", color: "var(--cream-muted)", textTransform: "uppercase", flexShrink: 0 }}>
@@ -542,6 +545,7 @@ export default function ChatEngine({ onClose }: ChatEngineProps) {
             ))}
           </div>
         );
+      }
 
       default:
         return null;
