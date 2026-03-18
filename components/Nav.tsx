@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 
 interface NavProps {
-  onReserveClick: () => void;
+  onReserveClick?: () => void;
 }
 
 export default function Nav({ onReserveClick }: NavProps) {

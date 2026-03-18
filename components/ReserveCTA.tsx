@@ -1,7 +1,7 @@
 "use client";
 
 interface ReserveCTAProps {
-  onReserveClick: () => void;
+  onReserveClick?: () => void;
 }
 
 export default function ReserveCTA({ onReserveClick }: ReserveCTAProps) {

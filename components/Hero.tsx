@@ -1,7 +1,7 @@
 "use client";
 
 interface HeroProps {
-  onReserveClick: () => void;
+  onReserveClick?: () => void;
 }
 
 export default function Hero({ onReserveClick }: HeroProps) {
