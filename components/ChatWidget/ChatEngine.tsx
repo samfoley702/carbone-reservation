@@ -5,6 +5,7 @@ import { ChatMessage, ChatStep } from "@/types/chat";
 import { ReservationData, LOCATIONS, TIME_SLOTS } from "@/types/reservation";
 import { validateStep } from "@/lib/validateReservation";
 import Calendar from "@/components/ReservationForm/Calendar";
+import { coercePartialData } from "@/lib/coercePartialData";
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
@@ -159,14 +160,15 @@ const ChatBubble = memo(function ChatBubble({ message }: { message: ChatMessage 
 
 interface ChatEngineProps {
   onClose: () => void;
+  initialData?: Partial<ReservationData>;
 }
 
 // ── Main Component ────────────────────────────────────────────────────────────
 
-export default function ChatEngine({ onClose }: ChatEngineProps) {
+export default function ChatEngine({ onClose, initialData }: ChatEngineProps) {
   const [state, dispatch] = useReducer(chatReducer, {
     step: 1,
-    data: INITIAL_DATA,
+    data: { ...INITIAL_DATA, ...coercePartialData(initialData) },
     messages: [{ role: "bot", text: BOT_QUESTIONS[1], id: "bot-1" }],
     shaking: false,
     submitting: false,
