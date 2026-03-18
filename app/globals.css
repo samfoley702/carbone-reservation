@@ -361,8 +361,8 @@ body {
   }
 
   .form-step {
-    align-items: flex-start;
-    text-align: left;
+    align-items: center;
+    text-align: center;
     padding: 5rem 1.5rem 5rem;
   }
 }
