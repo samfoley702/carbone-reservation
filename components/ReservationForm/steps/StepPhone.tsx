@@ -80,6 +80,7 @@ export default function StepPhone({ data, onChange, shaking }: Props) {
           type="tel"
           className="form-input"
           placeholder="(212) 555-0100"
+          autoComplete="tel"
           value={data.phone}
           onChange={handleChange}
         />

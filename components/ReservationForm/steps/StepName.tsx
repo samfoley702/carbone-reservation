@@ -74,6 +74,7 @@ export default function StepName({ data, onChange, shaking }: Props) {
             type="text"
             className="form-input"
             placeholder="Mario"
+            autoComplete="given-name"
             value={data.firstName}
             onChange={(e) => onChange({ firstName: e.target.value })}
           />
@@ -96,6 +97,7 @@ export default function StepName({ data, onChange, shaking }: Props) {
             type="text"
             className="form-input"
             placeholder="Rossi"
+            autoComplete="family-name"
             value={data.lastName}
             onChange={(e) => onChange({ lastName: e.target.value })}
           />
