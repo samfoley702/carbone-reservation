@@ -1,26 +1,365 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --bg: #0A1A29;
+  --bg-elevated: #0f2035;
+  --bg-card: rgba(255, 249, 240, 0.03);
+  --cream: #FFF9F0;
+  --cream-muted: rgba(255, 249, 240, 0.55);
+  --cream-subtle: rgba(255, 249, 240, 0.08);
+  --gold: #C9A84C;
+  --gold-muted: rgba(201, 168, 76, 0.35);
+  --burgundy: #6B1A2A;
+  --border: rgba(255, 249, 240, 0.12);
+  --border-active: rgba(255, 249, 240, 0.6);
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+* {
+  box-sizing: border-box;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+html {
+  scroll-behavior: smooth;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background-color: var(--bg);
+  color: var(--cream);
+  font-family: var(--font-cormorant), Georgia, serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* ── Typography ──────────────────── */
+
+.font-display {
+  font-family: var(--font-oswald), system-ui, sans-serif;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+/* ── Nav ─────────────────────────── */
+
+.nav {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 100;
+  padding: 1.25rem 2.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  transition: background 0.4s ease, backdrop-filter 0.4s ease, border-color 0.4s ease;
+  border-bottom: 1px solid transparent;
+}
+
+.nav--scrolled {
+  background: rgba(10, 26, 41, 0.95);
+  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(12px);
+  border-bottom-color: var(--border);
+}
+
+.nav--hidden {
+  transform: translateY(-100%);
+  transition: transform 0.3s ease, background 0.4s ease;
+}
+
+/* ── Hero ────────────────────────── */
+
+@keyframes heroBreath {
+  0% { transform: scale(1); }
+  100% { transform: scale(1.04); }
+}
+
+.hero-bg {
+  animation: heroBreath 20s ease-in-out infinite alternate;
+}
+
+/* ── Buttons ─────────────────────── */
+
+.btn-primary {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: var(--cream);
+  color: var(--bg);
+  font-family: var(--font-oswald), sans-serif;
+  font-size: 0.75rem;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  padding: 0.875rem 2.5rem;
+  border: 1px solid var(--cream);
+  border-radius: 2px;
+  cursor: pointer;
+  transition: background 0.25s ease, color 0.25s ease;
+  white-space: nowrap;
+}
+
+.btn-primary:hover {
+  background: transparent;
+  color: var(--cream);
+}
+
+.btn-outline {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: transparent;
+  color: var(--cream);
+  font-family: var(--font-oswald), sans-serif;
+  font-size: 0.75rem;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  padding: 0.875rem 2.5rem;
+  border: 1px solid var(--cream);
+  border-radius: 2px;
+  cursor: pointer;
+  transition: background 0.25s ease, color 0.25s ease;
+  white-space: nowrap;
+}
+
+.btn-outline:hover {
+  background: var(--cream);
+  color: var(--bg);
+}
+
+/* ── Location Cards ──────────────── */
+
+.location-card {
+  border: 1px solid var(--border);
+  background: var(--bg-card);
+  padding: 1.75rem;
+  cursor: pointer;
+  transition: border-color 0.3s ease, background 0.3s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+.location-card::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 60%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255, 249, 240, 0.04), transparent);
+  transition: left 0.5s ease;
+}
+
+.location-card:hover::after {
+  left: 150%;
+}
+
+.location-card:hover {
+  border-color: var(--border-active);
+  background: rgba(255, 249, 240, 0.04);
+}
+
+/* ── Form Overlay ────────────────── */
+
+.form-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  background: var(--bg);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.4s ease;
+  display: flex;
+  flex-direction: column;
+}
+
+.form-overlay--active {
+  opacity: 1;
+  pointer-events: all;
+}
+
+/* ── Form Steps ──────────────────── */
+
+.form-step {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: flex-start;
+  padding: 6rem 10% 4rem;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.3s cubic-bezier(0.16, 1, 0.3, 1),
+              transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.form-step--active {
+  opacity: 1;
+  pointer-events: all;
+  transform: translateX(0) !important;
+}
+
+.form-step--enter-right {
+  transform: translateX(50px);
+}
+
+.form-step--enter-left {
+  transform: translateX(-50px);
+}
+
+.form-step--exit-left {
+  transform: translateX(-50px);
+  opacity: 0 !important;
+  pointer-events: none;
+}
+
+.form-step--exit-right {
+  transform: translateX(50px);
+  opacity: 0 !important;
+  pointer-events: none;
+}
+
+/* ── Form Inputs ─────────────────── */
+
+.form-input {
+  background: transparent;
+  border: none;
+  border-bottom: 1px solid var(--border-active);
+  color: var(--cream);
+  font-family: var(--font-cormorant), Georgia, serif;
+  font-size: 1.5rem;
+  padding: 0.5rem 0;
+  width: 100%;
+  outline: none;
+  caret-color: var(--gold);
+  transition: border-color 0.25s ease;
+}
+
+.form-input::placeholder {
+  color: var(--cream-muted);
+}
+
+.form-input:focus {
+  border-bottom-color: var(--cream);
+}
+
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  20% { transform: translateX(-8px); }
+  40% { transform: translateX(8px); }
+  60% { transform: translateX(-5px); }
+  80% { transform: translateX(5px); }
+}
+
+.shake {
+  animation: shake 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* ── Calendar ────────────────────── */
+
+.cal-day {
+  width: 2.25rem;
+  height: 2.25rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  font-family: var(--font-cormorant), Georgia, serif;
+  font-size: 0.95rem;
+  cursor: pointer;
+  transition: background 0.2s ease, color 0.2s ease;
+}
+
+.cal-day:hover:not(.cal-day--disabled):not(.cal-day--selected) {
+  background: var(--cream-subtle);
+}
+
+.cal-day--selected {
+  background: var(--cream);
+  color: var(--bg);
+}
+
+.cal-day--disabled {
+  opacity: 0.25;
+  cursor: not-allowed;
+}
+
+.cal-day--today {
+  border: 1px solid var(--gold-muted);
+}
+
+/* ── Time Cards ──────────────────── */
+
+.time-card {
+  border: 1px solid var(--border);
+  padding: 1.25rem 1.75rem;
+  cursor: pointer;
+  transition: border-color 0.25s ease, background 0.25s ease;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.time-card:hover {
+  border-color: var(--border-active);
+  background: var(--cream-subtle);
+}
+
+.time-card--selected {
+  border-color: var(--cream);
+  background: rgba(255, 249, 240, 0.06);
+}
+
+/* ── Confirmation ────────────────── */
+
+@keyframes confirmReveal {
+  0% { opacity: 0; transform: scale(0.7); }
+  70% { transform: scale(1.05); }
+  100% { opacity: 1; transform: scale(1); }
+}
+
+.confirm-icon {
+  animation: confirmReveal 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes fadeSlideUp {
+  from { opacity: 0; transform: translateY(14px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.stagger-in {
+  opacity: 0;
+  animation: fadeSlideUp 0.45s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+/* ── Progress Bar ────────────────── */
+
+.progress-bar-fill {
+  height: 100%;
+  background: var(--cream);
+  transition: width 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* ── Press Row ───────────────────── */
+
+.press-item {
+  font-family: var(--font-oswald), sans-serif;
+  font-size: 0.7rem;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--cream-muted);
+  transition: color 0.25s ease;
+}
+
+.press-item:hover {
+  color: var(--cream);
+}
+
+@media (max-width: 768px) {
+  .nav {
+    padding: 1rem 1.25rem;
+  }
+
+  .form-step {
+    padding: 5rem 1.5rem 5rem;
+  }
 }
