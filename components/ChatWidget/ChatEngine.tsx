@@ -181,6 +181,7 @@ export default function ChatEngine({ onClose }: ChatEngineProps) {
 
   // Cleanup on unmount
   useEffect(() => {
+    mountedRef.current = true;
     return () => {
       mountedRef.current = false;
       abortControllerRef.current?.abort();
