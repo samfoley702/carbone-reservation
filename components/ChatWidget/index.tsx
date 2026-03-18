@@ -1,28 +1,66 @@
 "use client";
 
+import dynamic from "next/dynamic";
 import { useEffect, useRef, useState } from "react";
+import { ReservationData } from "@/types/reservation";
 import ChatEngine from "./ChatEngine";
+import TalkOrTypeScreen from "./TalkOrTypeScreen";
+
+// VoiceAgent loaded lazily — keeps ElevenLabs SDK out of the initial bundle
+// and avoids SSR errors from WebRTC/AudioContext APIs
+const VoiceAgent = dynamic(() => import("./VoiceAgent"), {
+  ssr: false,
+  loading: () => (
+    <div
+      style={{
+        display: "flex",
+        flex: 1,
+        alignItems: "center",
+        justifyContent: "center",
+        background: "var(--bg-elevated)",
+        color: "var(--cream-muted)",
+        fontFamily: "var(--font-oswald), sans-serif",
+        fontSize: "0.55rem",
+        letterSpacing: "0.2em",
+        textTransform: "uppercase",
+      }}
+    >
+      Connecting…
+    </div>
+  ),
+});
+
+type ChatMode = null | "type" | "talk";
 
 export default function ChatWidget() {
   const [isOpen, setIsOpen] = useState(false);
+  const [mode, setMode] = useState<ChatMode>(null);
+  const [partialData, setPartialData] = useState<Partial<ReservationData>>({});
   const [fabVisible, setFabVisible] = useState(false);
   const fabRef = useRef<HTMLButtonElement>(null);
 
-  // Reveal FAB after user scrolls past the hero (100px threshold)
+  // Reveal FAB after user scrolls past the hero
   useEffect(() => {
     const onScroll = () => {
       setFabVisible(window.scrollY > 80);
     };
     window.addEventListener("scroll", onScroll, { passive: true });
-    // Also show immediately if already scrolled (e.g. page refresh)
     onScroll();
     return () => window.removeEventListener("scroll", onScroll);
   }, []);
 
+  const handleOpen = () => setIsOpen(true);
+
   const handleClose = () => {
     setIsOpen(false);
-    // Return focus to FAB
+    setMode(null);
+    setPartialData({});
     requestAnimationFrame(() => fabRef.current?.focus());
+  };
+
+  const handleSwitchToType = (data: Partial<ReservationData>) => {
+    setPartialData(data);
+    setMode("type");
   };
 
   return (
@@ -30,7 +68,7 @@ export default function ChatWidget() {
       {/* Floating action button */}
       <button
         ref={fabRef}
-        onClick={() => setIsOpen((v) => !v)}
+        onClick={() => (isOpen ? handleClose() : handleOpen())}
         aria-label={isOpen ? "Close chat" : "Open reservation chat"}
         aria-expanded={isOpen}
         aria-controls="chat-popup"
@@ -78,14 +116,12 @@ export default function ChatWidget() {
           display: "flex",
           flexDirection: "column",
           overflow: "hidden",
-          // Scale-from-corner open animation
           transformOrigin: "bottom right",
           transition: "opacity 0.25s ease, transform 0.25s cubic-bezier(0.16, 1, 0.3, 1)",
           opacity: isOpen ? 1 : 0,
           transform: isOpen ? "scale(1)" : "scale(0.95)",
           pointerEvents: isOpen ? "auto" : "none",
         }}
-        // Desktop: fixed width anchored to bottom-right
         className="chat-popup-panel"
       >
         {/* Header */}
@@ -150,8 +186,22 @@ export default function ChatWidget() {
           />
         </div>
 
-        {/* Chat engine — conditionally mounted so state resets on close */}
-        {isOpen && <ChatEngine onClose={handleClose} />}
+        {/* Content — conditionally mounted so state resets on close */}
+        {isOpen && mode === null && (
+          <TalkOrTypeScreen
+            onSelectType={() => setMode("type")}
+            onSelectTalk={() => setMode("talk")}
+          />
+        )}
+        {isOpen && mode === "type" && (
+          <ChatEngine onClose={handleClose} initialData={partialData} />
+        )}
+        {isOpen && mode === "talk" && (
+          <VoiceAgent
+            onClose={handleClose}
+            onSwitchToType={handleSwitchToType}
+          />
+        )}
       </div>
 
       <style>{`
