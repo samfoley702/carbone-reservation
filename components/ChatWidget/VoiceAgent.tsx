@@ -3,7 +3,7 @@
 import { memo, useCallback, useEffect, useRef, useState } from "react";
 import { useConversation } from "@elevenlabs/react";
 import { z } from "zod";
-import { ReservationData } from "@/types/reservation";
+import { ReservationData, LOCATIONS } from "@/types/reservation";
 import { coercePartialData } from "@/lib/coercePartialData";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -27,11 +27,14 @@ type TranscriptMsg = {
 
 // ── Zod schema for submitReservation params ───────────────────────────────────
 
+// Derive valid cities from the canonical LOCATIONS constant so schema stays in sync
+const VALID_CITIES = LOCATIONS.map((l) => l.city) as [string, ...string[]];
+
 const SubmitReservationSchema = z.object({
   firstName: z.string().min(1),
   lastName: z.string().min(1),
-  phone: z.string().max(30),
-  location: z.string(),
+  phone: z.string().regex(/^[\+]?[\d\s\-\(\)]{10,}$/).max(30),
+  location: z.enum(VALID_CITIES),
   date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
   partySize: z.number().int().min(1).max(20),
   timeSlot: z.enum(["early", "prime", "late"]),
@@ -172,7 +175,6 @@ export default function VoiceAgent({ onClose, onSwitchToType }: VoiceAgentProps)
             method: "POST",
             headers: {
               "Content-Type": "application/json",
-              "X-Source": "voice",
             },
             body: JSON.stringify(parsed.data),
             signal: abortController.signal,
@@ -287,14 +289,15 @@ export default function VoiceAgent({ onClose, onSwitchToType }: VoiceAgentProps)
 
   // ── Retry (cleans up previous attempt first) ──────────────────────────────
 
-  const handleRetry = useCallback(() => {
+  const handleRetry = useCallback(async () => {
     micStreamRef.current?.getTracks().forEach((t) => t.stop());
     micStreamRef.current = null;
     sessionFetchAbortRef.current?.abort();
     sessionEndedRef.current = false;
     isInitiatingRef.current = false;
     setVoiceState({ status: "idle" });
-  }, []);
+    await handleStartTalk();
+  }, [handleStartTalk]);
 
   // ── Switch to Type (carry over any collected data) ────────────────────────
 
@@ -533,36 +536,27 @@ export default function VoiceAgent({ onClose, onSwitchToType }: VoiceAgentProps)
           )}
 
           {/* Switch to typing — always visible (except success) */}
-          {voiceState.status !== "idle" && (
-            <button
-              onClick={handleSwitchToType}
-              style={{
-                background: "none",
-                border: "none",
-                color: "var(--cream-muted)",
-                fontFamily: "var(--font-oswald), sans-serif",
-                fontSize: "0.5rem",
-                letterSpacing: "0.18em",
-                textTransform: "uppercase",
-                cursor: "pointer",
-                padding: "0.25rem",
-                textDecoration: "underline",
-                alignSelf: "center",
-              }}
-            >
-              Switch to typing instead
-            </button>
-          )}
+          <button
+            type="button"
+            onClick={handleSwitchToType}
+            style={{
+              background: "none",
+              border: "none",
+              color: "var(--cream-muted)",
+              fontFamily: "var(--font-oswald), sans-serif",
+              fontSize: "0.5rem",
+              letterSpacing: "0.18em",
+              textTransform: "uppercase",
+              cursor: "pointer",
+              padding: "0.25rem",
+              textDecoration: "underline",
+              alignSelf: "center",
+            }}
+          >
+            {voiceState.status === "idle" ? "Type instead →" : "Switch to typing instead"}
+          </button>
         </div>
       )}
-
-      {/* CSS animations */}
-      <style>{`
-        @keyframes voicePulse {
-          0%, 100% { transform: scale(1); opacity: 1; }
-          50% { transform: scale(1.5); opacity: 0.5; }
-        }
-      `}</style>
     </div>
   );
 }

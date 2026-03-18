@@ -27,7 +27,7 @@ export async function getSignedUrl(): Promise<string> {
   }
 
   const res = await fetch(
-    `https://api.elevenlabs.io/v1/convai/conversation/get-signed-url?agent_id=${ELEVENLABS_AGENT_ID}`,
+    `https://api.elevenlabs.io/v1/convai/conversation/get-signed-url?agent_id=${encodeURIComponent(ELEVENLABS_AGENT_ID)}`,
     {
       headers: { "xi-api-key": ELEVENLABS_API_KEY },
       cache: "no-store",

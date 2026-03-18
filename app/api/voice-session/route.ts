@@ -10,10 +10,17 @@ export async function GET(request: Request) {
     );
   }
 
-  // CSRF: reject cross-origin requests
+  // CSRF: reject cross-origin requests (browser-only endpoint)
   const origin = request.headers.get("origin");
   const host = request.headers.get("host");
-  if (origin && host && !origin.includes(host)) {
+  if (!origin) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+  try {
+    if (new URL(origin).host !== host) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+  } catch {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 

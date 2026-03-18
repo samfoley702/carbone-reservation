@@ -63,7 +63,6 @@ export default function TalkOrTypeScreen({
       >
         <button
           onClick={onSelectTalk}
-          onKeyDown={(e) => (e.key === "Enter" || e.key === " ") && onSelectTalk()}
           style={{
             border: "1px solid var(--border)",
             background: "transparent",
@@ -112,7 +111,6 @@ export default function TalkOrTypeScreen({
 
         <button
           onClick={onSelectType}
-          onKeyDown={(e) => (e.key === "Enter" || e.key === " ") && onSelectType()}
           style={{
             border: "1px solid var(--border)",
             background: "transparent",
