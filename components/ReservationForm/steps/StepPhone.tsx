@@ -37,7 +37,7 @@ export default function StepPhone({ data, onChange, shaking }: Props) {
   };
 
   return (
-    <div style={{ width: "100%", maxWidth: "500px" }}>
+    <div style={{ width: "100%", maxWidth: "500px", margin: "0 auto" }}>
       <p
         style={{
           fontFamily: "var(--font-oswald), sans-serif",

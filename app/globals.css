@@ -26,6 +26,7 @@ body {
   background-color: var(--bg);
   color: var(--cream);
   font-family: var(--font-cormorant), Georgia, serif;
+  font-size: 18px;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
@@ -184,7 +185,8 @@ body {
   display: flex;
   flex-direction: column;
   justify-content: center;
-  align-items: flex-start;
+  align-items: center;
+  text-align: center;
   padding: 6rem 10% 4rem;
   opacity: 0;
   pointer-events: none;
@@ -360,6 +362,8 @@ body {
   }
 
   .form-step {
+    align-items: center;
+    text-align: center;
     padding: 5rem 1.5rem 5rem;
   }
 }

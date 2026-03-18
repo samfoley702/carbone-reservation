@@ -14,7 +14,7 @@ export default function StepPartySize({ data, onChange }: Props) {
   };
 
   return (
-    <div style={{ width: "100%", maxWidth: "400px" }}>
+    <div style={{ width: "100%", maxWidth: "400px", margin: "0 auto" }}>
       <p
         style={{
           fontFamily: "var(--font-oswald), sans-serif",

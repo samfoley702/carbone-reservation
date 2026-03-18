@@ -17,7 +17,7 @@ export default function StepName({ data, onChange, shaking }: Props) {
   }, []);
 
   return (
-    <div style={{ width: "100%", maxWidth: "560px" }}>
+    <div style={{ width: "100%", maxWidth: "560px", margin: "0 auto" }}>
       <p
         style={{
           fontFamily: "var(--font-oswald), sans-serif",

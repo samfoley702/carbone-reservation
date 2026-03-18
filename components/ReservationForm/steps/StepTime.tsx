@@ -10,7 +10,7 @@ interface Props {
 
 export default function StepTime({ data, onChange, shaking }: Props) {
   return (
-    <div style={{ width: "100%", maxWidth: "520px" }}>
+    <div style={{ width: "100%", maxWidth: "520px", margin: "0 auto" }}>
       <p
         style={{
           fontFamily: "var(--font-oswald), sans-serif",
