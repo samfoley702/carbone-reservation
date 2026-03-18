@@ -3,7 +3,7 @@
 import { LOCATIONS } from "@/types/reservation";
 
 interface LocationsProps {
-  onReserveClick: () => void;
+  onReserveClick?: () => void;
 }
 
 export default function Locations({ onReserveClick }: LocationsProps) {

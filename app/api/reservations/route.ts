@@ -21,6 +21,20 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
     }
 
+    // Server-side field length + enum validation
+    if (firstName.length > 100 || lastName.length > 100) {
+      return NextResponse.json({ error: "Name too long" }, { status: 400 });
+    }
+    if (phone.length > 30) {
+      return NextResponse.json({ error: "Phone too long" }, { status: 400 });
+    }
+    if (specialNote && specialNote.length > 1000) {
+      return NextResponse.json({ error: "Special note too long" }, { status: 400 });
+    }
+    if (!["early", "prime", "late"].includes(timeSlot)) {
+      return NextResponse.json({ error: "Invalid time slot" }, { status: 400 });
+    }
+
     const sql = getDb();
 
     await sql`
