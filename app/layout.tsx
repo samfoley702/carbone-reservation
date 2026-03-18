@@ -1,18 +1,18 @@
 import type { Metadata } from "next";
-import { Cormorant_Garamond, Oswald } from "next/font/google";
+import { EB_Garamond, Bebas_Neue } from "next/font/google";
 import "./globals.css";
 
-const cormorant = Cormorant_Garamond({
+const cormorant = EB_Garamond({
   variable: "--font-cormorant",
   subsets: ["latin"],
-  weight: ["300", "400", "500", "600", "700"],
+  weight: ["400", "500", "700"],
   style: ["normal", "italic"],
 });
 
-const oswald = Oswald({
+const oswald = Bebas_Neue({
   variable: "--font-oswald",
   subsets: ["latin"],
-  weight: ["300", "400", "500", "600"],
+  weight: ["400"],
 });
 
 export const metadata: Metadata = {
