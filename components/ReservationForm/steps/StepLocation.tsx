@@ -14,7 +14,7 @@ export default function StepLocation({ data, onChange, shaking }: Props) {
   };
 
   return (
-    <div style={{ width: "100%", maxWidth: "700px" }}>
+    <div style={{ width: "100%", maxWidth: "700px", margin: "0 auto" }}>
       <p
         style={{
           fontFamily: "var(--font-oswald), sans-serif",

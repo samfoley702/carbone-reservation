@@ -38,7 +38,7 @@ export default function StepConfirmation({ data, onSubmit, submitting, submitted
   ];
 
   return (
-    <div style={{ width: "100%", maxWidth: "560px" }}>
+    <div style={{ width: "100%", maxWidth: "560px", margin: "0 auto" }}>
       {submitted ? (
         <>
           {/* Success state */}

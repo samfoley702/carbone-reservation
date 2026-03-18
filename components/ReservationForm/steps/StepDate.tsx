@@ -11,7 +11,7 @@ interface Props {
 
 export default function StepDate({ data, onChange, shaking }: Props) {
   return (
-    <div style={{ width: "100%" }}>
+    <div style={{ width: "100%", maxWidth: "600px", margin: "0 auto" }}>
       <p
         style={{
           fontFamily: "var(--font-oswald), sans-serif",
