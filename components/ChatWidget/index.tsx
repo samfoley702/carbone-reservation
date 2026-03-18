@@ -19,21 +19,6 @@ export default function ChatWidget() {
     return () => window.removeEventListener("scroll", onScroll);
   }, []);
 
-  // Focus first interactive element inside popup on open (double-RAF pattern from FormEngine)
-  useEffect(() => {
-    if (!isOpen) return;
-    const id = requestAnimationFrame(() => {
-      requestAnimationFrame(() => {
-        const popup = document.getElementById("chat-popup");
-        const first = popup?.querySelector<HTMLElement>(
-          "input, button:not([aria-label='Close chat'])"
-        );
-        first?.focus();
-      });
-    });
-    return () => cancelAnimationFrame(id);
-  }, [isOpen]);
-
   const handleClose = () => {
     setIsOpen(false);
     // Return focus to FAB

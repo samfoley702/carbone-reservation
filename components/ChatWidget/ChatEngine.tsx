@@ -335,6 +335,7 @@ export default function ChatEngine({ onClose }: ChatEngineProps) {
               <label style={labelStyle}>First Name</label>
               <input
                 ref={firstNameRef}
+                autoFocus
                 type="text"
                 className="form-input"
                 placeholder="Mario"
@@ -410,6 +411,16 @@ export default function ChatEngine({ onClose }: ChatEngineProps) {
                     color: "var(--cream)",
                   }}>
                     {loc.city}
+                  </p>
+                  <p style={{
+                    fontFamily: "var(--font-oswald), sans-serif",
+                    fontSize: "0.5rem",
+                    letterSpacing: "0.1em",
+                    color: "var(--gold)",
+                    textTransform: "uppercase",
+                    marginTop: "0.2rem",
+                  }}>
+                    {loc.descriptor}
                   </p>
                   {selected && (
                     <span style={{ color: "var(--gold)", fontSize: "0.65rem" }}>✓</span>
