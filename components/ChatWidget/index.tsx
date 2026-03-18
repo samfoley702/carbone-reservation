@@ -3,8 +3,15 @@
 import { useEffect, useRef, useState } from "react";
 import ChatEngine from "./ChatEngine";
 
-export default function ChatWidget() {
-  const [isOpen, setIsOpen] = useState(false);
+interface ChatWidgetProps {
+  isOpen?: boolean;
+  onOpen?: () => void;
+  onClose?: () => void;
+}
+
+export default function ChatWidget({ isOpen: isOpenProp, onOpen, onClose: onCloseProp }: ChatWidgetProps) {
+  const [isOpenInternal, setIsOpenInternal] = useState(false);
+  const isOpen = isOpenProp !== undefined ? isOpenProp : isOpenInternal;
   const [fabVisible, setFabVisible] = useState(false);
   const fabRef = useRef<HTMLButtonElement>(null);
 
@@ -20,9 +27,15 @@ export default function ChatWidget() {
   }, []);
 
   const handleClose = () => {
-    setIsOpen(false);
+    if (onCloseProp) onCloseProp();
+    else setIsOpenInternal(false);
     // Return focus to FAB
     requestAnimationFrame(() => fabRef.current?.focus());
+  };
+
+  const handleOpen = () => {
+    if (onOpen) onOpen();
+    else setIsOpenInternal(true);
   };
 
   return (
@@ -30,7 +43,7 @@ export default function ChatWidget() {
       {/* Floating action button */}
       <button
         ref={fabRef}
-        onClick={() => setIsOpen((v) => !v)}
+        onClick={() => (isOpen ? handleClose() : handleOpen())}
         aria-label={isOpen ? "Close chat" : "Open reservation chat"}
         aria-expanded={isOpen}
         aria-controls="chat-popup"
