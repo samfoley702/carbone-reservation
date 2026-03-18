@@ -35,6 +35,38 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Invalid time slot" }, { status: 400 });
     }
 
+    const VALID_LOCATIONS = [
+      "New York",
+      "Miami",
+      "Las Vegas",
+      "Dallas",
+      "Hong Kong",
+      "London",
+      "Dubai",
+      "Doha",
+      "Riyadh",
+    ];
+    if (!VALID_LOCATIONS.includes(location)) {
+      return NextResponse.json({ error: "Invalid location" }, { status: 400 });
+    }
+
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+      return NextResponse.json({ error: "Invalid date" }, { status: 400 });
+    }
+    const parsedDate = new Date(date + "T00:00:00Z");
+    if (isNaN(parsedDate.getTime())) {
+      return NextResponse.json({ error: "Invalid date" }, { status: 400 });
+    }
+    const todayUtc = new Date();
+    todayUtc.setUTCHours(0, 0, 0, 0);
+    if (parsedDate < todayUtc) {
+      return NextResponse.json({ error: "Invalid date" }, { status: 400 });
+    }
+
+    if (!Number.isInteger(partySize) || partySize < 1 || partySize > 20) {
+      return NextResponse.json({ error: "Invalid party size" }, { status: 400 });
+    }
+
     const sql = getDb();
 
     await sql`
