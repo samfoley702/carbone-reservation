@@ -47,10 +47,11 @@ export default function Hero({ onReserveClick }: HeroProps) {
           style={{
             fontFamily: "var(--font-cormorant), Georgia, serif",
             fontSize: "clamp(5rem, 14vw, 10rem)",
-            fontWeight: 400,
+            fontWeight: 700,
             lineHeight: 0.9,
             color: "var(--cream)",
-            letterSpacing: "-0.01em",
+            letterSpacing: "0.08em",
+            textTransform: "uppercase",
             marginBottom: "1.5rem",
           }}
         >
