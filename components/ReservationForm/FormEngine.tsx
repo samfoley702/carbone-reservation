@@ -19,7 +19,7 @@ const INITIAL_DATA: ReservationData = {
   location: "",
   date: null,
   partySize: 2,
-  timeSlot: null,
+  preferredTime: null,
   specialNote: "",
 };
 
@@ -48,7 +48,7 @@ export default function FormEngine({ onClose }: FormEngineProps) {
       case 3: return !!data.location;
       case 4: return !!data.date;
       case 5: return data.partySize >= 1;
-      case 6: return !!data.timeSlot;
+      case 6: return !!data.preferredTime;
       default: return true;
     }
   }, [step, data]);

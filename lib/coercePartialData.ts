@@ -1,4 +1,4 @@
-import { ReservationData, LOCATIONS, TIME_SLOTS } from "@/types/reservation";
+import { ReservationData, LOCATIONS, PREFERRED_TIMES } from "@/types/reservation";
 import { normalizeLocation } from "@/lib/normalizeLocation";
 
 /**
@@ -8,7 +8,7 @@ import { normalizeLocation } from "@/lib/normalizeLocation";
  * Validates all values against the same constraints as the API route:
  * - location must be in the LOCATIONS allowlist
  * - date must be YYYY-MM-DD and convert to a valid Date
- * - timeSlot must be "early" | "prime" | "late"
+ * - preferredTime must be in the PREFERRED_TIMES allowlist
  */
 export function coercePartialData(
   raw: Partial<Record<string, unknown>> | undefined
@@ -52,10 +52,9 @@ export function coercePartialData(
     result.date = raw.date;
   }
 
-  // Validate timeSlot
-  const validSlots = TIME_SLOTS.map((s) => s.id);
-  if (validSlots.includes(raw.timeSlot as typeof validSlots[number])) {
-    result.timeSlot = raw.timeSlot as ReservationData["timeSlot"];
+  // Validate preferredTime
+  if (typeof raw.preferredTime === "string" && PREFERRED_TIMES.includes(raw.preferredTime)) {
+    result.preferredTime = raw.preferredTime;
   }
 
   return result;

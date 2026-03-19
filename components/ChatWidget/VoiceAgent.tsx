@@ -3,7 +3,7 @@
 import { memo, useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState } from "react";
 import { useConversation } from "@elevenlabs/react";
 import { z } from "zod";
-import { ReservationData, LOCATIONS } from "@/types/reservation";
+import { ReservationData, LOCATIONS, PREFERRED_TIMES } from "@/types/reservation";
 import { coercePartialData } from "@/lib/coercePartialData";
 import { normalizeLocation } from "@/lib/normalizeLocation";
 import ReservationSummaryCard, { buildReviewRows } from "@/components/ReservationSummaryCard";
@@ -42,7 +42,10 @@ const SubmitReservationSchema = z.object({
   location: z.enum(VALID_CITIES),
   date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
   partySize: z.number().int().min(1).max(20),
-  timeSlot: z.enum(["early", "prime", "late"]),
+  preferredTime: z.string().refine(
+    (val) => PREFERRED_TIMES.includes(val),
+    { message: "Must be a valid time between 5:00 PM and 11:00 PM in 15-minute increments" }
+  ),
   specialNote: z.string().max(1000).optional(),
 });
 

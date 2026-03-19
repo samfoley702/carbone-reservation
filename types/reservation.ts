@@ -1,5 +1,3 @@
-export type TimeSlot = "early" | "prime" | "late";
-
 export interface ReservationData {
   firstName: string;
   lastName: string;
@@ -7,7 +5,7 @@ export interface ReservationData {
   location: string;
   date: Date | null;
   partySize: number;
-  timeSlot: TimeSlot | null;
+  preferredTime: string | null;
   specialNote: string;
 }
 
@@ -23,8 +21,17 @@ export const LOCATIONS = [
   { id: "riyadh", city: "Riyadh", descriptor: "Kingdom Centre" },
 ] as const;
 
-export const TIME_SLOTS = [
-  { id: "early" as TimeSlot, label: "Early Seating", hours: "5:30 – 7:00 PM" },
-  { id: "prime" as TimeSlot, label: "Prime Seating", hours: "7:00 – 9:00 PM" },
-  { id: "late" as TimeSlot, label: "Late Seating", hours: "9:00 – 11:00 PM" },
-] as const;
+function generatePreferredTimes(): string[] {
+  const times: string[] = [];
+  for (let hour = 5; hour <= 11; hour++) {
+    const maxMinute = hour === 11 ? 0 : 45;
+    for (let minute = 0; minute <= maxMinute; minute += 15) {
+      const displayHour = hour >= 12 ? hour - 12 : hour;
+      const mm = minute.toString().padStart(2, "0");
+      times.push(`${displayHour}:${mm} PM`);
+    }
+  }
+  return times;
+}
+
+export const PREFERRED_TIMES = generatePreferredTimes();

@@ -1,6 +1,6 @@
 "use client";
 
-import { ReservationData, TIME_SLOTS } from "@/types/reservation";
+import { ReservationData, PREFERRED_TIMES } from "@/types/reservation";
 
 interface Props {
   data: ReservationData;
@@ -47,41 +47,37 @@ export default function StepTime({ data, onChange, shaking }: Props) {
         We&apos;ll confirm availability with you directly.
       </p>
 
-      {/* Time slot cards */}
-      <div className={shaking ? "shake" : ""} style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
-        {TIME_SLOTS.map((slot) => {
-          const selected = data.timeSlot === slot.id;
+      {/* Time picker */}
+      <div
+        className={shaking ? "shake" : ""}
+        style={{
+          display: "flex",
+          flexDirection: "column",
+          gap: "0.5rem",
+          maxHeight: "300px",
+          overflowY: "auto",
+          paddingRight: "0.25rem",
+        }}
+      >
+        {PREFERRED_TIMES.map((time) => {
+          const selected = data.preferredTime === time;
           return (
             <button
-              key={slot.id}
-              onClick={() => onChange({ timeSlot: slot.id })}
+              key={time}
+              onClick={() => onChange({ preferredTime: time })}
               className={`time-card ${selected ? "time-card--selected" : ""}`}
               style={{ width: "100%", background: "none", cursor: "pointer" }}
             >
-              <div style={{ textAlign: "left" }}>
-                <p
-                  style={{
-                    fontFamily: "var(--font-cormorant), Georgia, serif",
-                    fontSize: "1.2rem",
-                    fontWeight: 400,
-                    color: "var(--cream)",
-                  }}
-                >
-                  {slot.label}
-                </p>
-                <p
-                  style={{
-                    fontFamily: "var(--font-oswald), sans-serif",
-                    fontSize: "0.65rem",
-                    letterSpacing: "0.12em",
-                    color: "var(--gold)",
-                    textTransform: "uppercase",
-                    marginTop: "0.2rem",
-                  }}
-                >
-                  {slot.hours}
-                </p>
-              </div>
+              <span
+                style={{
+                  fontFamily: "var(--font-cormorant), Georgia, serif",
+                  fontSize: "1.2rem",
+                  fontWeight: 400,
+                  color: "var(--cream)",
+                }}
+              >
+                {time}
+              </span>
               {selected && (
                 <span style={{ color: "var(--cream)", fontSize: "1rem" }}>✓</span>
               )}
