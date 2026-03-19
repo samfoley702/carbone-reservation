@@ -1,6 +1,6 @@
 "use client";
 
-import { memo, useCallback, useEffect, useRef, useState } from "react";
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useConversation } from "@elevenlabs/react";
 import { z } from "zod";
 import { ReservationData, LOCATIONS } from "@/types/reservation";
@@ -112,95 +112,114 @@ export default function VoiceAgent({ onClose, onSwitchToType }: VoiceAgentProps)
   const partialDataRef = useRef<Partial<ReservationData>>({});
   const msgCounter = useRef(0);
 
-  // ── Safe endSession guard (prevents double-close) ─────────────────────────
+  // ── Stable ref for safeEndSession (breaks forward-reference in clientTools) ──
+
+  // safeEndSession depends on `conversation`, which isn't available until after
+  // useConversation runs. We use a ref so clientTools can always call the latest
+  // version without capturing a stale closure or creating a circular dependency.
+  const safeEndSessionRef = useRef<() => Promise<void>>(async () => {});
+
+  // ── Stable callbacks for useConversation ─────────────────────────────────
+  // Defined before useConversation so the hook receives referentially stable
+  // config across renders, preventing mid-session hook re-initialization.
+
+  const onConnectCb = useCallback(() => {
+    if (!isMountedRef.current) return;
+    setVoiceState({ status: "connected" });
+  }, []);
+
+  const onDisconnectCb = useCallback((details: { reason: string }) => {
+    // NEVER call endSession() here — causes WebSocket double-close error
+    if (!isMountedRef.current) return;
+    if (details.reason === "error") {
+      setVoiceState({
+        status: "error",
+        message: "Connection lost. Try again or switch to typing.",
+      });
+    }
+    // reason === "user" → we called endSession, no UI change needed
+    // reason === "agent" → agent ended cleanly (after submitReservation)
+  }, []);
+
+  const onErrorCb = useCallback((message: string) => {
+    if (!isMountedRef.current) return;
+    setVoiceState({ status: "error", message: message || "Connection error. Please try again." });
+  }, []);
+
+  const onMessageCb = useCallback(({ message, role }: { message: string; role: string }) => {
+    if (!isMountedRef.current) return;
+    msgCounter.current += 1;
+    // Functional updater avoids stale closure
+    setMessages((prev) => [
+      ...prev,
+      {
+        id: `${role}-${msgCounter.current}`,
+        role: role as "user" | "agent",
+        text: message,
+      },
+    ]);
+  }, []);
+
+  const submitReservationTool = useCallback(async (params: unknown): Promise<string> => {
+    // Validate agent-supplied params before trusting them
+    const parsed = SubmitReservationSchema.safeParse(params);
+    if (!parsed.success) {
+      return "Validation failed. Please ask the guest to provide the details again.";
+    }
+
+    if (!isMountedRef.current) return "Component unmounted.";
+
+    setVoiceState({ status: "submitting" });
+
+    const abortController = new AbortController();
+    submissionAbortRef.current = abortController;
+
+    try {
+      const res = await fetch("/api/reservations", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(parsed.data),
+        signal: abortController.signal,
+      });
+
+      if (!res.ok) throw new Error("Server error");
+
+      // Store for carry-over in case user switches to Type afterward
+      partialDataRef.current = coercePartialData(parsed.data as Record<string, unknown>);
+
+      if (!isMountedRef.current) return "Component unmounted.";
+      setVoiceState({ status: "success" });
+      await safeEndSessionRef.current();
+      return "Reservation submitted successfully.";
+    } catch (err) {
+      if ((err as Error).name === "AbortError") return "Submission cancelled.";
+      if (!isMountedRef.current) return "Component unmounted.";
+      setVoiceState({
+        status: "error",
+        message: "Something went wrong submitting. Try again or switch to typing.",
+      });
+      return "Submission failed. Please inform the guest and try again.";
+    }
+  }, []);
+
+  const clientTools = useMemo(
+    () => ({ submitReservation: submitReservationTool }),
+    [submitReservationTool]
+  );
+
+  // ── ElevenLabs conversation hook ──────────────────────────────────────────
 
   const conversation = useConversation({
     preferHeadphonesForIosDevices: true,
     connectionDelay: { android: 3000, ios: 0, default: 0 },
-
-    onConnect: () => {
-      if (!isMountedRef.current) return;
-      setVoiceState({ status: "connected" });
-    },
-
-    onDisconnect: (details) => {
-      // NEVER call endSession() here — causes WebSocket double-close error
-      if (!isMountedRef.current) return;
-      if (details.reason === "error") {
-        setVoiceState({
-          status: "error",
-          message: "Connection lost. Try again or switch to typing.",
-        });
-      }
-      // reason === "user" → we called endSession, no UI change needed
-      // reason === "agent" → agent ended cleanly (after submitReservation)
-    },
-
-    onError: (message) => {
-      if (!isMountedRef.current) return;
-      setVoiceState({ status: "error", message: message || "Connection error. Please try again." });
-    },
-
-    onMessage: ({ message, role }) => {
-      if (!isMountedRef.current) return;
-      msgCounter.current += 1;
-      // Functional updater avoids stale closure
-      setMessages((prev) => [
-        ...prev,
-        {
-          id: `${role}-${msgCounter.current}`,
-          role: role as "user" | "agent",
-          text: message,
-        },
-      ]);
-    },
-
-    clientTools: {
-      submitReservation: async (params: unknown): Promise<string> => {
-        // Validate agent-supplied params before trusting them
-        const parsed = SubmitReservationSchema.safeParse(params);
-        if (!parsed.success) {
-          return "Validation failed. Please ask the guest to provide the details again.";
-        }
-
-        if (!isMountedRef.current) return "Component unmounted.";
-
-        setVoiceState({ status: "submitting" });
-
-        const abortController = new AbortController();
-        submissionAbortRef.current = abortController;
-
-        try {
-          const res = await fetch("/api/reservations", {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify(parsed.data),
-            signal: abortController.signal,
-          });
-
-          if (!res.ok) throw new Error("Server error");
-
-          // Store for carry-over in case user switches to Type afterward
-          partialDataRef.current = coercePartialData(parsed.data as Record<string, unknown>);
-
-          if (!isMountedRef.current) return "Component unmounted.";
-          setVoiceState({ status: "success" });
-          await safeEndSession();
-          return "Reservation submitted successfully.";
-        } catch (err) {
-          if ((err as Error).name === "AbortError") return "Submission cancelled.";
-          if (!isMountedRef.current) return "Component unmounted.";
-          setVoiceState({
-            status: "error",
-            message: "Something went wrong submitting. Try again or switch to typing.",
-          });
-          return "Submission failed. Please inform the guest and try again.";
-        }
-      },
-    },
+    onConnect: onConnectCb,
+    onDisconnect: onDisconnectCb,
+    onError: onErrorCb,
+    onMessage: onMessageCb,
+    clientTools,
   });
+
+  // ── Safe endSession guard (prevents double-close) ─────────────────────────
 
   const safeEndSession = useCallback(async () => {
     if (sessionEndedRef.current) return;
@@ -212,6 +231,11 @@ export default function VoiceAgent({ onClose, onSwitchToType }: VoiceAgentProps)
     }
   }, [conversation]);
 
+  // Keep ref in sync so clientTools always calls the latest version
+  useEffect(() => {
+    safeEndSessionRef.current = safeEndSession;
+  }, [safeEndSession]);
+
   // ── Auto-scroll ───────────────────────────────────────────────────────────
 
   useEffect(() => {
@@ -221,15 +245,13 @@ export default function VoiceAgent({ onClose, onSwitchToType }: VoiceAgentProps)
   // ── Cleanup on unmount ────────────────────────────────────────────────────
 
   useEffect(() => {
-    isMountedRef.current = true;
     return () => {
       isMountedRef.current = false;
-      micStreamRef.current?.getTracks().forEach((t) => t.stop());
       submissionAbortRef.current?.abort();
       sessionFetchAbortRef.current?.abort();
-      safeEndSession();
+      safeEndSessionRef.current();
     };
-  }, [safeEndSession]);
+  }, []); // Empty deps — all cleanup uses refs, not closures
 
   // ── Start talk session (serialized: mic → URL → connect) ─────────────────
 
@@ -239,10 +261,12 @@ export default function VoiceAgent({ onClose, onSwitchToType }: VoiceAgentProps)
     isInitiatingRef.current = true;
 
     // Step 1: Request mic FIRST (iOS Safari requires direct user gesture)
+    // Release immediately after — ElevenLabs acquires the mic itself in startSession.
+    // Holding the stream open conflicts with ElevenLabs' own getUserMedia call.
     setVoiceState({ status: "requesting-mic" });
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      micStreamRef.current = stream;
+      stream.getTracks().forEach((t) => t.stop());
     } catch (err) {
       if (!isMountedRef.current) return;
       const name = (err as Error).name;

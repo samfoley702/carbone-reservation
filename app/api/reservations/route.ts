@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getDb } from "@/lib/db";
+import { LOCATIONS } from "@/types/reservation";
 
 export async function POST(request: Request) {
   try {
@@ -35,17 +36,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Invalid time slot" }, { status: 400 });
     }
 
-    const VALID_LOCATIONS = [
-      "New York",
-      "Miami",
-      "Las Vegas",
-      "Dallas",
-      "Hong Kong",
-      "London",
-      "Dubai",
-      "Doha",
-      "Riyadh",
-    ];
+    const VALID_LOCATIONS: string[] = LOCATIONS.map((l) => l.city);
     if (!VALID_LOCATIONS.includes(location)) {
       return NextResponse.json({ error: "Invalid location" }, { status: 400 });
     }
