@@ -88,32 +88,49 @@ export default function ChatWidget() {
         {isOpen ? "✕ Close" : "Concierge"}
       </button>
 
-      {/* Chat popup panel — hidden when voice modal is open */}
+      {/* Backdrop overlay */}
+      {isOpen && !voiceModalOpen && (
+        <div
+          onClick={handleClose}
+          style={{
+            position: "fixed",
+            inset: 0,
+            zIndex: 149,
+            background: "rgba(10, 26, 41, 0.75)",
+            backdropFilter: "blur(6px)",
+            WebkitBackdropFilter: "blur(6px)",
+            opacity: 1,
+            transition: "opacity 0.25s ease",
+          }}
+        />
+      )}
+
+      {/* Chat popup panel — centered modal */}
       <div
         id="chat-popup"
         role="dialog"
         aria-label="Carbone reservation request"
-        aria-modal="false"
+        aria-modal="true"
         style={{
           position: "fixed",
-          bottom: "5rem",
-          right: "1rem",
-          left: "1rem",
+          top: "50%",
+          left: "50%",
           zIndex: 150,
-          width: "auto",
+          width: "min(28rem, 90vw)",
           maxHeight: "80dvh",
           background: "var(--bg)",
           border: "1px solid var(--border)",
           display: voiceModalOpen ? "none" : "flex",
           flexDirection: "column",
           overflow: "hidden",
-          transformOrigin: "bottom right",
+          transformOrigin: "center center",
           transition: "opacity 0.25s ease, transform 0.25s cubic-bezier(0.16, 1, 0.3, 1)",
           opacity: isOpen && !voiceModalOpen ? 1 : 0,
-          transform: isOpen && !voiceModalOpen ? "scale(1)" : "scale(0.95)",
+          transform: isOpen && !voiceModalOpen
+            ? "translate(-50%, -50%) scale(1)"
+            : "translate(-50%, -50%) scale(0.95)",
           pointerEvents: isOpen && !voiceModalOpen ? "auto" : "none",
         }}
-        className="chat-popup-panel"
       >
         {/* Header */}
         <div
@@ -197,15 +214,6 @@ export default function ChatWidget() {
         />
       )}
 
-      <style>{`
-        @media (min-width: 640px) {
-          .chat-popup-panel {
-            left: auto !important;
-            right: 1.5rem !important;
-            width: 23rem !important;
-          }
-        }
-      `}</style>
     </>
   );
 }
