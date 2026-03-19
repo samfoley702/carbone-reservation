@@ -1,4 +1,4 @@
-import { ReservationData, LOCATIONS, TIME_SLOTS } from "@/types/reservation";
+import { ReservationData, LOCATIONS, PREFERRED_TIMES } from "@/types/reservation";
 import { normalizeLocation } from "@/lib/normalizeLocation";
 
 /**
@@ -52,10 +52,9 @@ export function coercePartialData(
     result.date = raw.date;
   }
 
-  // Validate timeSlot
-  const validSlots = TIME_SLOTS.map((s) => s.id);
-  if (validSlots.includes(raw.timeSlot as typeof validSlots[number])) {
-    result.timeSlot = raw.timeSlot as ReservationData["timeSlot"];
+  // Validate preferredTime
+  if (typeof raw.preferredTime === "string" && PREFERRED_TIMES.includes(raw.preferredTime)) {
+    result.preferredTime = raw.preferredTime;
   }
 
   return result;

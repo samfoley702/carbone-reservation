@@ -14,7 +14,7 @@ export function validateStep(step: ChatStep, data: ReservationData): boolean {
     case 5:
       return data.partySize >= 1;
     case 6:
-      return !!data.timeSlot;
+      return !!data.preferredTime;
     case 7:
       return true;
   }
