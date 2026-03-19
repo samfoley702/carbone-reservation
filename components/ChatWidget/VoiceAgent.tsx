@@ -406,8 +406,13 @@ export default function VoiceAgent({ onClose, onSwitchToType, onSpeakingChange, 
     // Step 3: Start ElevenLabs session
     setVoiceState({ status: "connecting" });
     try {
+      const now = new Date();
       await conversation.startSession({
         signedUrl,
+        dynamicVariables: {
+          currentDate: now.toISOString().split("T")[0],
+          currentDayOfWeek: now.toLocaleDateString("en-US", { weekday: "long" }),
+        },
       });
     } catch {
       if (!isMountedRef.current) return;
