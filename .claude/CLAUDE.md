@@ -19,7 +19,7 @@ phone        TEXT NOT NULL
 location     TEXT NOT NULL
 date         DATE NOT NULL
 party_size   INTEGER NOT NULL
-time_slot    TEXT NOT NULL   -- 'early' | 'prime' | 'late'
+preferred_time TEXT NOT NULL -- e.g. '7:30 PM', 15-min increments 5:00-11:00 PM
 special_note TEXT            -- nullable
 created_at   TIMESTAMPTZ DEFAULT NOW()
 ```
