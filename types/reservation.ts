@@ -26,7 +26,7 @@ function generatePreferredTimes(): string[] {
   for (let hour = 5; hour <= 11; hour++) {
     const maxMinute = hour === 11 ? 0 : 45;
     for (let minute = 0; minute <= maxMinute; minute += 15) {
-      const displayHour = hour > 12 ? hour - 12 : hour;
+      const displayHour = hour >= 12 ? hour - 12 : hour;
       const mm = minute.toString().padStart(2, "0");
       times.push(`${displayHour}:${mm} PM`);
     }
