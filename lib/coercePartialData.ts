@@ -1,5 +1,4 @@
 import { ReservationData, LOCATIONS, PREFERRED_TIMES } from "@/types/reservation";
-import { normalizeLocation } from "@/lib/normalizeLocation";
 
 /**
  * Converts an unknown/partial object (e.g. ElevenLabs tool params) into a

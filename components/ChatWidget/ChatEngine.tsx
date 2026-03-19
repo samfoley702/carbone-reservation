@@ -303,25 +303,7 @@ export default function ChatEngine({ onClose, initialData }: ChatEngineProps) {
     }
   };
 
-  // ── Review rows (step 7) ───────────────────────────────────────────────────
-
-  const buildReviewRows = (data: ReservationData) => {
-    const formatDate = (d: Date | null) =>
-      d ? d.toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric", year: "numeric" }) : "—";
-    const formatTime = (slot: string | null) => {
-      const found = TIME_SLOTS.find((s) => s.id === slot);
-      return found ? `${found.label} — ${found.hours}` : "—";
-    };
-    return [
-      { label: "Guest", value: `${data.firstName} ${data.lastName}` },
-      { label: "Phone", value: data.phone },
-      { label: "Location", value: `Carbone ${data.location}` },
-      { label: "Date", value: formatDate(data.date) },
-      { label: "Party", value: `${data.partySize} guest${data.partySize !== 1 ? "s" : ""}` },
-      { label: "Time", value: formatTime(data.timeSlot) },
-      ...(data.specialNote ? [{ label: "Notes", value: data.specialNote }] : []),
-    ];
-  };
+  // ── Review rows (step 7) — uses shared buildReviewRows + ReservationSummaryCard
 
   // ── Input zone renderer ────────────────────────────────────────────────────
 
