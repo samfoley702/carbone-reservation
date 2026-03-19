@@ -1,12 +1,12 @@
 import { NextResponse } from "next/server";
 import { getDb } from "@/lib/db";
-import { LOCATIONS } from "@/types/reservation";
+import { LOCATIONS, PREFERRED_TIMES } from "@/types/reservation";
 
 export async function POST(request: Request) {
   try {
     const body = await request.json();
 
-    const { firstName, lastName, phone, location, date, partySize, timeSlot, specialNote } =
+    const { firstName, lastName, phone, location, date, partySize, preferredTime, specialNote } =
       body as {
         firstName: string;
         lastName: string;
@@ -14,11 +14,11 @@ export async function POST(request: Request) {
         location: string;
         date: string;
         partySize: number;
-        timeSlot: string;
+        preferredTime: string;
         specialNote?: string;
       };
 
-    if (!firstName || !lastName || !phone || !location || !date || !partySize || !timeSlot) {
+    if (!firstName || !lastName || !phone || !location || !date || !partySize || !preferredTime) {
       return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
     }
 
@@ -32,8 +32,8 @@ export async function POST(request: Request) {
     if (specialNote && specialNote.length > 1000) {
       return NextResponse.json({ error: "Special note too long" }, { status: 400 });
     }
-    if (!["early", "prime", "late"].includes(timeSlot)) {
-      return NextResponse.json({ error: "Invalid time slot" }, { status: 400 });
+    if (!PREFERRED_TIMES.includes(preferredTime)) {
+      return NextResponse.json({ error: "Invalid preferred time" }, { status: 400 });
     }
 
     const VALID_LOCATIONS: string[] = LOCATIONS.map((l) => l.city);
@@ -62,9 +62,9 @@ export async function POST(request: Request) {
 
     await sql`
       INSERT INTO reservation_requests
-        (first_name, last_name, phone, location, date, party_size, time_slot, special_note)
+        (first_name, last_name, phone, location, date, party_size, preferred_time, special_note)
       VALUES
-        (${firstName}, ${lastName}, ${phone}, ${location}, ${date}, ${partySize}, ${timeSlot}, ${specialNote ?? null})
+        (${firstName}, ${lastName}, ${phone}, ${location}, ${date}, ${partySize}, ${preferredTime}, ${specialNote ?? null})
     `;
 
     return NextResponse.json({ success: true });
