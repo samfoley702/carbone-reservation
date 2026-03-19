@@ -11,17 +11,19 @@ export async function GET(request: Request) {
   }
 
   // CSRF: reject cross-origin requests (browser-only endpoint)
+  // Browsers omit the Origin header on same-origin GET requests, so a
+  // missing Origin is safe — only reject when Origin IS present but
+  // doesn't match the Host.
   const origin = request.headers.get("origin");
   const host = request.headers.get("host");
-  if (!origin) {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-  }
-  try {
-    if (new URL(origin).host !== host) {
+  if (origin) {
+    try {
+      if (new URL(origin).host !== host) {
+        return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+      }
+    } catch {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
-  } catch {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
   try {
