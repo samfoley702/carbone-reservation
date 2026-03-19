@@ -1,4 +1,5 @@
 import { ReservationData, LOCATIONS, TIME_SLOTS } from "@/types/reservation";
+import { normalizeLocation } from "@/lib/normalizeLocation";
 
 /**
  * Converts an unknown/partial object (e.g. ElevenLabs tool params) into a
@@ -32,10 +33,13 @@ export function coercePartialData(
     result.partySize = Math.round(raw.partySize);
   }
 
-  // Validate location against allowlist
+  // Normalize and validate location against allowlist
   const validCities = LOCATIONS.map((l) => l.city);
-  if (typeof raw.location === "string" && validCities.includes(raw.location as typeof validCities[number])) {
-    result.location = raw.location as string;
+  if (typeof raw.location === "string") {
+    const normalized = normalizeLocation(raw.location);
+    if (validCities.includes(normalized as typeof validCities[number])) {
+      result.location = normalized;
+    }
   }
 
   // Convert YYYY-MM-DD string to Date

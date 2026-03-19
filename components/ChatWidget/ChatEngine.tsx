@@ -3,6 +3,7 @@
 import React, { memo, useEffect, useReducer, useRef } from "react";
 import { ChatMessage, ChatStep } from "@/types/chat";
 import { ReservationData, LOCATIONS, TIME_SLOTS } from "@/types/reservation";
+import ReservationSummaryCard, { buildReviewRows } from "@/components/ReservationSummaryCard";
 import { validateStep } from "@/lib/validateReservation";
 import Calendar from "@/components/ReservationForm/Calendar";
 import { coercePartialData } from "@/lib/coercePartialData";
@@ -304,25 +305,7 @@ export default function ChatEngine({ onClose, initialData }: ChatEngineProps) {
     }
   };
 
-  // ── Review rows (step 7) ───────────────────────────────────────────────────
-
-  const buildReviewRows = (data: ReservationData) => {
-    const formatDate = (d: Date | null) =>
-      d ? d.toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric", year: "numeric" }) : "—";
-    const formatTime = (slot: string | null) => {
-      const found = TIME_SLOTS.find((s) => s.id === slot);
-      return found ? `${found.label} — ${found.hours}` : "—";
-    };
-    return [
-      { label: "Guest", value: `${data.firstName} ${data.lastName}` },
-      { label: "Phone", value: data.phone },
-      { label: "Location", value: `Carbone ${data.location}` },
-      { label: "Date", value: formatDate(data.date) },
-      { label: "Party", value: `${data.partySize} guest${data.partySize !== 1 ? "s" : ""}` },
-      { label: "Time", value: formatTime(data.timeSlot) },
-      ...(data.specialNote ? [{ label: "Notes", value: data.specialNote }] : []),
-    ];
-  };
+  // ── Review rows (step 7) — uses shared buildReviewRows + ReservationSummaryCard
 
   // ── Input zone renderer ────────────────────────────────────────────────────
 
@@ -532,33 +515,8 @@ export default function ChatEngine({ onClose, initialData }: ChatEngineProps) {
           </div>
         );
 
-      case 7: {
-        const rows = buildReviewRows(state.data);
-        return (
-          <div style={{ border: "1px solid var(--border)", padding: "1rem" }}>
-            {rows.map((row, i) => (
-              <div
-                key={row.label}
-                style={{
-                  display: "flex",
-                  justifyContent: "space-between",
-                  gap: "0.75rem",
-                  paddingBottom: i < rows.length - 1 ? "0.65rem" : 0,
-                  marginBottom: i < rows.length - 1 ? "0.65rem" : 0,
-                  borderBottom: i < rows.length - 1 ? "1px solid var(--border)" : "none",
-                }}
-              >
-                <span style={{ fontFamily: "var(--font-oswald), sans-serif", fontSize: "0.55rem", letterSpacing: "0.18em", color: "var(--cream-muted)", textTransform: "uppercase", flexShrink: 0 }}>
-                  {row.label}
-                </span>
-                <span style={{ fontFamily: "var(--font-cormorant), Georgia, serif", fontSize: "0.9rem", color: "var(--cream)", textAlign: "right" }}>
-                  {row.value}
-                </span>
-              </div>
-            ))}
-          </div>
-        );
-      }
+      case 7:
+        return <ReservationSummaryCard rows={buildReviewRows(state.data)} />;
 
       default:
         return null;

@@ -5,6 +5,8 @@ import { useConversation } from "@elevenlabs/react";
 import { z } from "zod";
 import { ReservationData, LOCATIONS } from "@/types/reservation";
 import { coercePartialData } from "@/lib/coercePartialData";
+import { normalizeLocation } from "@/lib/normalizeLocation";
+import ReservationSummaryCard, { buildReviewRows } from "@/components/ReservationSummaryCard";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -29,6 +31,9 @@ type TranscriptMsg = {
 
 // Derive valid cities from the canonical LOCATIONS constant so schema stays in sync
 const VALID_CITIES = LOCATIONS.map((l) => l.city) as [string, ...string[]];
+
+// Schema used by both showReservationSummary and submitReservation.
+// showReservationSummary applies normalizeLocation before parsing.
 
 const SubmitReservationSchema = z.object({
   firstName: z.string().min(1).max(100),
@@ -143,6 +148,8 @@ interface VoiceAgentProps {
 export default function VoiceAgent({ onClose, onSwitchToType, onSpeakingChange, handleRef }: VoiceAgentProps) {
   const [voiceState, setVoiceState] = useState<VoiceState>({ status: "idle" });
   const [messages, setMessages] = useState<TranscriptMsg[]>([]);
+  // Reservation summary shown by the showReservationSummary client tool
+  const [summaryData, setSummaryData] = useState<z.infer<typeof SubmitReservationSchema> | null>(null);
 
   // Refs for cleanup and guards
   const isMountedRef = useRef(true);
@@ -201,10 +208,51 @@ export default function VoiceAgent({ onClose, onSwitchToType, onSpeakingChange, 
     ]);
   }, []);
 
-  const submitReservationTool = useCallback(async (params: unknown): Promise<string> => {
-    // Validate agent-supplied params before trusting them
-    const parsed = SubmitReservationSchema.safeParse(params);
+  // ── showReservationSummary client tool ───────────────────────────────────
+  // Called by the ElevenLabs agent to display a visual summary card before submitting.
+  // The agent should read back the details and ask the guest to confirm.
+
+  const showReservationSummaryTool = useCallback(async (params: unknown): Promise<string> => {
+    // Normalize location before validation so aliases like "NYC" → "New York" work
+    const raw = params as Record<string, unknown>;
+    if (typeof raw?.location === "string") {
+      raw.location = normalizeLocation(raw.location);
+    }
+
+    const parsed = SubmitReservationSchema.safeParse(raw);
     if (!parsed.success) {
+      const errors = parsed.error.flatten().fieldErrors;
+      const details = Object.entries(errors)
+        .map(([field, msgs]) => {
+          if (field === "location") {
+            return `Invalid location. Valid locations are: ${VALID_CITIES.join(", ")}`;
+          }
+          return `${field}: ${(msgs as string[]).join(", ")}`;
+        })
+        .join(". ");
+      return `Summary not displayed — validation errors: ${details}. Please correct and try again.`;
+    }
+
+    // Store summary data for rendering and update partialDataRef for Talk→Type handoff
+    setSummaryData(parsed.data);
+    partialDataRef.current = coercePartialData(parsed.data as Record<string, unknown>);
+
+    return "Summary displayed. Please read back the details and ask the guest to confirm or request changes.";
+  }, []);
+
+  const submitReservationTool = useCallback(async (params: unknown): Promise<string> => {
+    // Normalize location before validation
+    const raw = params as Record<string, unknown>;
+    if (typeof raw?.location === "string") {
+      raw.location = normalizeLocation(raw.location);
+    }
+
+    // Validate agent-supplied params before trusting them
+    const parsed = SubmitReservationSchema.safeParse(raw);
+    if (!parsed.success) {
+      console.warn("submitReservation validation failed:", parsed.error.flatten(), {
+        rawParams: { ...raw, phone: "[REDACTED]" },
+      });
       return "Validation failed. Please ask the guest to provide the details again.";
     }
 
@@ -244,8 +292,11 @@ export default function VoiceAgent({ onClose, onSwitchToType, onSpeakingChange, 
   }, []);
 
   const clientTools = useMemo(
-    () => ({ submitReservation: submitReservationTool }),
-    [submitReservationTool]
+    () => ({
+      showReservationSummary: showReservationSummaryTool,
+      submitReservation: submitReservationTool,
+    }),
+    [showReservationSummaryTool, submitReservationTool]
   );
 
   // ── ElevenLabs conversation hook ──────────────────────────────────────────
@@ -355,8 +406,13 @@ export default function VoiceAgent({ onClose, onSwitchToType, onSpeakingChange, 
     // Step 3: Start ElevenLabs session
     setVoiceState({ status: "connecting" });
     try {
+      const now = new Date();
       await conversation.startSession({
         signedUrl,
+        dynamicVariables: {
+          currentDate: now.toISOString().split("T")[0],
+          currentDayOfWeek: now.toLocaleDateString("en-US", { weekday: "long" }),
+        },
       });
     } catch {
       if (!isMountedRef.current) return;
@@ -467,6 +523,25 @@ export default function VoiceAgent({ onClose, onSwitchToType, onSpeakingChange, 
         {messages.map((msg) => (
           <TranscriptBubble key={msg.id} msg={msg} />
         ))}
+
+        {/* Reservation summary card (shown by showReservationSummary tool) */}
+        {summaryData && (
+          <div style={{ alignSelf: "stretch", marginTop: "0.25rem" }}>
+            <p
+              style={{
+                fontFamily: "var(--font-oswald), sans-serif",
+                fontSize: "0.5rem",
+                letterSpacing: "0.18em",
+                color: "var(--cream-muted)",
+                textTransform: "uppercase",
+                marginBottom: "0.5rem",
+              }}
+            >
+              {voiceState.status === "success" ? "Reservation Submitted" : "Reservation Summary"}
+            </p>
+            <ReservationSummaryCard rows={buildReviewRows(summaryData)} />
+          </div>
+        )}
 
         {/* Success bubble */}
         {voiceState.status === "success" && (
