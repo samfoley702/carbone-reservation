@@ -2,7 +2,7 @@
 
 import React, { memo, useEffect, useReducer, useRef } from "react";
 import { ChatMessage, ChatStep } from "@/types/chat";
-import { ReservationData, LOCATIONS, TIME_SLOTS } from "@/types/reservation";
+import { ReservationData, LOCATIONS, PREFERRED_TIMES } from "@/types/reservation";
 import ReservationSummaryCard, { buildReviewRows } from "@/components/ReservationSummaryCard";
 import { validateStep } from "@/lib/validateReservation";
 import Calendar from "@/components/ReservationForm/Calendar";
@@ -27,7 +27,7 @@ const INITIAL_DATA: ReservationData = {
   location: "",
   date: null,
   partySize: 2,
-  timeSlot: null,
+  preferredTime: null,
   specialNote: "",
 };
 
@@ -113,10 +113,8 @@ function getUserText(step: ChatStep, data: ReservationData): string {
         : "";
     case 5:
       return `${data.partySize} guest${data.partySize !== 1 ? "s" : ""}`;
-    case 6: {
-      const slot = TIME_SLOTS.find((s) => s.id === data.timeSlot);
-      return slot ? `${slot.label} — ${slot.hours}` : "";
-    }
+    case 6:
+      return data.preferredTime ?? "";
     case 7:
       return "";
   }
@@ -478,24 +476,29 @@ export default function ChatEngine({ onClose, initialData }: ChatEngineProps) {
       case 6:
         return (
           <div>
-            <div className={shaking ? "shake" : ""} style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>
-              {TIME_SLOTS.map((slot) => {
-                const selected = data.timeSlot === slot.id;
+            <div
+              className={shaking ? "shake" : ""}
+              style={{
+                display: "flex",
+                flexDirection: "column",
+                gap: "0.5rem",
+                maxHeight: "200px",
+                overflowY: "auto",
+                paddingRight: "0.25rem",
+              }}
+            >
+              {PREFERRED_TIMES.map((time) => {
+                const selected = data.preferredTime === time;
                 return (
                   <button
-                    key={slot.id}
-                    onClick={() => update({ timeSlot: slot.id })}
+                    key={time}
+                    onClick={() => update({ preferredTime: time })}
                     className={`time-card ${selected ? "time-card--selected" : ""}`}
                     style={{ width: "100%", background: "none", cursor: "pointer" }}
                   >
-                    <div style={{ textAlign: "left" }}>
-                      <p style={{ fontFamily: "var(--font-cormorant), Georgia, serif", fontSize: "1rem", color: "var(--cream)" }}>
-                        {slot.label}
-                      </p>
-                      <p style={{ fontFamily: "var(--font-oswald), sans-serif", fontSize: "0.6rem", letterSpacing: "0.12em", color: "var(--gold)", textTransform: "uppercase", marginTop: "0.15rem" }}>
-                        {slot.hours}
-                      </p>
-                    </div>
+                    <span style={{ fontFamily: "var(--font-cormorant), Georgia, serif", fontSize: "1rem", color: "var(--cream)" }}>
+                      {time}
+                    </span>
                     {selected && <span style={{ color: "var(--cream)", fontSize: "0.9rem" }}>✓</span>}
                   </button>
                 );
