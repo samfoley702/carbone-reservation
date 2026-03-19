@@ -1,5 +1,62 @@
 "use client";
 
+interface ChoiceButtonProps {
+  icon: string;
+  label: string;
+  sublabel: string;
+  onClick: () => void;
+  hoverBorderColor: string;
+  hoverBackground: string;
+}
+
+function ChoiceButton({ icon, label, sublabel, onClick, hoverBorderColor, hoverBackground }: ChoiceButtonProps) {
+  return (
+    <button
+      onClick={onClick}
+      className="choice-btn"
+      style={{
+        border: "1px solid var(--border)",
+        background: "transparent",
+        padding: "1rem 1.25rem",
+        cursor: "pointer",
+        textAlign: "left",
+        display: "flex",
+        alignItems: "center",
+        gap: "0.75rem",
+        transition: "border-color 0.2s ease, background 0.2s ease",
+        // CSS custom props used by the :hover rule injected below
+        ["--hover-border" as string]: hoverBorderColor,
+        ["--hover-bg" as string]: hoverBackground,
+      }}
+    >
+      <span style={{ fontSize: "1.25rem" }}>{icon}</span>
+      <div>
+        <p
+          style={{
+            fontFamily: "var(--font-cormorant), Georgia, serif",
+            fontSize: "1.05rem",
+            color: "var(--cream)",
+            marginBottom: "0.15rem",
+          }}
+        >
+          {label}
+        </p>
+        <p
+          style={{
+            fontFamily: "var(--font-oswald), sans-serif",
+            fontSize: "0.5rem",
+            letterSpacing: "0.18em",
+            color: "var(--cream-muted)",
+            textTransform: "uppercase",
+          }}
+        >
+          {sublabel}
+        </p>
+      </div>
+    </button>
+  );
+}
+
 interface TalkOrTypeScreenProps {
   onSelectType: () => void;
   onSelectTalk: () => void;
@@ -61,102 +118,30 @@ export default function TalkOrTypeScreen({
           gap: "0.75rem",
         }}
       >
-        <button
+        <ChoiceButton
+          icon="🎙"
+          label="Talk"
+          sublabel="Speak with our voice concierge"
           onClick={onSelectTalk}
-          style={{
-            border: "1px solid var(--border)",
-            background: "transparent",
-            padding: "1rem 1.25rem",
-            cursor: "pointer",
-            textAlign: "left",
-            display: "flex",
-            alignItems: "center",
-            gap: "0.75rem",
-            transition: "border-color 0.2s ease, background 0.2s ease",
-          }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.borderColor = "var(--gold)";
-            e.currentTarget.style.background = "rgba(201,168,76,0.05)";
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.borderColor = "var(--border)";
-            e.currentTarget.style.background = "transparent";
-          }}
-        >
-          <span style={{ fontSize: "1.25rem" }}>🎙</span>
-          <div>
-            <p
-              style={{
-                fontFamily: "var(--font-cormorant), Georgia, serif",
-                fontSize: "1.05rem",
-                color: "var(--cream)",
-                marginBottom: "0.15rem",
-              }}
-            >
-              Talk
-            </p>
-            <p
-              style={{
-                fontFamily: "var(--font-oswald), sans-serif",
-                fontSize: "0.5rem",
-                letterSpacing: "0.18em",
-                color: "var(--cream-muted)",
-                textTransform: "uppercase",
-              }}
-            >
-              Speak with our voice concierge
-            </p>
-          </div>
-        </button>
-
-        <button
+          hoverBorderColor="var(--gold)"
+          hoverBackground="rgba(201,168,76,0.05)"
+        />
+        <ChoiceButton
+          icon="⌨"
+          label="Type"
+          sublabel="Fill out the form at your own pace"
           onClick={onSelectType}
-          style={{
-            border: "1px solid var(--border)",
-            background: "transparent",
-            padding: "1rem 1.25rem",
-            cursor: "pointer",
-            textAlign: "left",
-            display: "flex",
-            alignItems: "center",
-            gap: "0.75rem",
-            transition: "border-color 0.2s ease, background 0.2s ease",
-          }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.borderColor = "var(--cream-muted)";
-            e.currentTarget.style.background = "rgba(255,249,240,0.04)";
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.borderColor = "var(--border)";
-            e.currentTarget.style.background = "transparent";
-          }}
-        >
-          <span style={{ fontSize: "1.25rem" }}>⌨</span>
-          <div>
-            <p
-              style={{
-                fontFamily: "var(--font-cormorant), Georgia, serif",
-                fontSize: "1.05rem",
-                color: "var(--cream)",
-                marginBottom: "0.15rem",
-              }}
-            >
-              Type
-            </p>
-            <p
-              style={{
-                fontFamily: "var(--font-oswald), sans-serif",
-                fontSize: "0.5rem",
-                letterSpacing: "0.18em",
-                color: "var(--cream-muted)",
-                textTransform: "uppercase",
-              }}
-            >
-              Fill out the form at your own pace
-            </p>
-          </div>
-        </button>
+          hoverBorderColor="var(--cream-muted)"
+          hoverBackground="rgba(255,249,240,0.04)"
+        />
       </div>
+
+      <style>{`
+        .choice-btn:hover {
+          border-color: var(--hover-border) !important;
+          background: var(--hover-bg) !important;
+        }
+      `}</style>
     </div>
   );
 }

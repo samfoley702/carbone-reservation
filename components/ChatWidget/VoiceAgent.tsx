@@ -31,15 +31,23 @@ type TranscriptMsg = {
 const VALID_CITIES = LOCATIONS.map((l) => l.city) as [string, ...string[]];
 
 const SubmitReservationSchema = z.object({
-  firstName: z.string().min(1),
-  lastName: z.string().min(1),
+  firstName: z.string().min(1).max(100),
+  lastName: z.string().min(1).max(100),
   phone: z.string().regex(/^[\+]?[\d\s\-\(\)]{10,}$/).max(30),
   location: z.enum(VALID_CITIES),
   date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
   partySize: z.number().int().min(1).max(20),
   timeSlot: z.enum(["early", "prime", "late"]),
-  specialNote: z.string().optional(),
+  specialNote: z.string().max(1000).optional(),
 });
+
+// ── Static constants ──────────────────────────────────────────────────────────
+
+const loadingLabel: Record<string, string> = {
+  "requesting-mic": "Requesting microphone…",
+  "fetching-session": "Connecting to concierge…",
+  connecting: "Connecting to concierge…",
+};
 
 // ── Speaking indicator (isolated so isSpeaking changes don't re-render transcript) ──
 
@@ -87,6 +95,35 @@ const TranscriptBubble = memo(function TranscriptBubble({ msg }: { msg: Transcri
   );
 });
 
+// ── Status bubble (agent-side messages for non-transcript states) ─────────────
+
+const StatusBubble = memo(function StatusBubble({
+  children,
+  maxWidth = "85%",
+}: {
+  children: React.ReactNode;
+  maxWidth?: string;
+}) {
+  return (
+    <div
+      className="chat-bubble--bot"
+      style={{
+        maxWidth,
+        alignSelf: "flex-start",
+        padding: "0.6rem 0.875rem",
+        borderRadius: "4px",
+        fontFamily: "var(--font-cormorant), Georgia, serif",
+        fontSize: "1rem",
+        color: "var(--cream)",
+        lineHeight: 1.45,
+        animation: "bubbleIn 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards",
+      }}
+    >
+      {children}
+    </div>
+  );
+});
+
 // ── Props ─────────────────────────────────────────────────────────────────────
 
 interface VoiceAgentProps {
@@ -104,13 +141,11 @@ export default function VoiceAgent({ onClose, onSwitchToType }: VoiceAgentProps)
   const isMountedRef = useRef(true);
   const sessionEndedRef = useRef(false);
   const isInitiatingRef = useRef(false);
-  const micStreamRef = useRef<MediaStream | null>(null);
   const submissionAbortRef = useRef<AbortController | null>(null);
   const sessionFetchAbortRef = useRef<AbortController | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
   // Accumulated partial data from voice session (for Talk→Type carry-over)
   const partialDataRef = useRef<Partial<ReservationData>>({});
-  const msgCounter = useRef(0);
 
   // ── Stable ref for safeEndSession (breaks forward-reference in clientTools) ──
 
@@ -148,12 +183,11 @@ export default function VoiceAgent({ onClose, onSwitchToType }: VoiceAgentProps)
 
   const onMessageCb = useCallback(({ message, role }: { message: string; role: string }) => {
     if (!isMountedRef.current) return;
-    msgCounter.current += 1;
-    // Functional updater avoids stale closure
+    // Functional updater avoids stale closure; use prev.length for stable unique IDs
     setMessages((prev) => [
       ...prev,
       {
-        id: `${role}-${msgCounter.current}`,
+        id: `${role}-${prev.length}`,
         role: role as "user" | "agent",
         text: message,
       },
@@ -314,8 +348,6 @@ export default function VoiceAgent({ onClose, onSwitchToType }: VoiceAgentProps)
   // ── Retry (cleans up previous attempt first) ──────────────────────────────
 
   const handleRetry = useCallback(async () => {
-    micStreamRef.current?.getTracks().forEach((t) => t.stop());
-    micStreamRef.current = null;
     sessionFetchAbortRef.current?.abort();
     sessionEndedRef.current = false;
     isInitiatingRef.current = false;
@@ -346,12 +378,6 @@ export default function VoiceAgent({ onClose, onSwitchToType }: VoiceAgentProps)
     voiceState.status === "requesting-mic" ||
     voiceState.status === "fetching-session" ||
     voiceState.status === "connecting";
-
-  const loadingLabel: Record<string, string> = {
-    "requesting-mic": "Requesting microphone…",
-    "fetching-session": "Connecting to concierge…",
-    connecting: "Connecting to concierge…",
-  };
 
   // ── Render ────────────────────────────────────────────────────────────────
 
@@ -396,40 +422,12 @@ export default function VoiceAgent({ onClose, onSwitchToType }: VoiceAgentProps)
 
         {/* Idle state — prompt to start */}
         {voiceState.status === "idle" && (
-          <div
-            className="chat-bubble--bot"
-            style={{
-              maxWidth: "85%",
-              alignSelf: "flex-start",
-              padding: "0.6rem 0.875rem",
-              borderRadius: "4px",
-              fontFamily: "var(--font-cormorant), Georgia, serif",
-              fontSize: "1rem",
-              color: "var(--cream)",
-              lineHeight: 1.45,
-              animation: "bubbleIn 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards",
-            }}
-          >
-            Tap the button below to speak with our voice concierge.
-          </div>
+          <StatusBubble>Tap the button below to speak with our voice concierge.</StatusBubble>
         )}
 
         {/* Mic denied */}
         {voiceState.status === "mic-denied" && (
-          <div
-            className="chat-bubble--bot"
-            style={{
-              maxWidth: "90%",
-              alignSelf: "flex-start",
-              padding: "0.75rem 0.875rem",
-              borderRadius: "4px",
-              fontFamily: "var(--font-cormorant), Georgia, serif",
-              fontSize: "1rem",
-              color: "var(--cream)",
-              lineHeight: 1.5,
-              animation: "bubbleIn 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards",
-            }}
-          >
+          <StatusBubble maxWidth="90%">
             Microphone access was denied.{" "}
             <button
               onClick={handleSwitchToType}
@@ -437,27 +435,12 @@ export default function VoiceAgent({ onClose, onSwitchToType }: VoiceAgentProps)
             >
               Switch to typing →
             </button>
-          </div>
+          </StatusBubble>
         )}
 
         {/* Error */}
         {voiceState.status === "error" && (
-          <div
-            className="chat-bubble--bot"
-            style={{
-              maxWidth: "90%",
-              alignSelf: "flex-start",
-              padding: "0.75rem 0.875rem",
-              borderRadius: "4px",
-              fontFamily: "var(--font-cormorant), Georgia, serif",
-              fontSize: "1rem",
-              color: "var(--cream)",
-              lineHeight: 1.5,
-              animation: "bubbleIn 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards",
-            }}
-          >
-            {voiceState.message}
-          </div>
+          <StatusBubble maxWidth="90%">{voiceState.message}</StatusBubble>
         )}
 
         {/* Transcript bubbles */}
@@ -467,21 +450,10 @@ export default function VoiceAgent({ onClose, onSwitchToType }: VoiceAgentProps)
 
         {/* Success bubble */}
         {voiceState.status === "success" && (
-          <div
-            className="chat-bubble--bot"
-            style={{
-              maxWidth: "85%",
-              alignSelf: "flex-start",
-              padding: "0.75rem 0.875rem",
-              borderRadius: "4px",
-              animation: "bubbleIn 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards",
-            }}
-          >
+          <StatusBubble>
             <span style={{ color: "var(--gold)", marginRight: "0.5rem" }}>✦</span>
-            <span style={{ fontFamily: "var(--font-cormorant), Georgia, serif", fontSize: "1rem", color: "var(--cream)" }}>
-              We&apos;ve received your request. Our concierge will be in touch within 24 hours.
-            </span>
-          </div>
+            <span>We&apos;ve received your request. Our concierge will be in touch within 24 hours.</span>
+          </StatusBubble>
         )}
 
         <div ref={bottomRef} />
@@ -530,7 +502,7 @@ export default function VoiceAgent({ onClose, onSwitchToType }: VoiceAgentProps)
 
           {isConnected && (
             <button
-              onClick={() => safeEndSession()}
+              onClick={safeEndSession}
               style={{
                 width: "100%",
                 fontSize: "0.65rem",
