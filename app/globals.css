@@ -382,10 +382,89 @@ body {
   border-width: 0;
 }
 
+/* ── Voice Orb Modal ─────────────── */
+
+.voice-orb-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 190;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  background: rgba(10, 26, 41, 0.88);
+  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(12px);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.4s ease;
+}
+
+.voice-orb-modal--active {
+  opacity: 1;
+  pointer-events: all;
+}
+
+/* ── Voice Orb ───────────────────── */
+
+@keyframes orbBreathe {
+  0%, 100% { transform: scale(1); }
+  50%      { transform: scale(1.06); }
+}
+
+@keyframes orbRotate {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+
+.voice-orb {
+  width: clamp(140px, 30vw, 220px);
+  aspect-ratio: 1;
+  border-radius: 50%;
+  position: relative;
+  background: radial-gradient(circle at 35% 35%, rgba(201,168,76,0.5), rgba(201,168,76,0.08) 60%, transparent 80%),
+              rgba(10, 26, 41, 0.8);
+  box-shadow: 0 0 40px rgba(201,168,76,0.15);
+  animation: orbBreathe 3s ease-in-out infinite;
+  transition: box-shadow 0.1s ease-out;
+  /* Volume-driven overrides via --vol custom property (0–1) */
+}
+
+.voice-orb::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: radial-gradient(circle at 65% 65%, rgba(255,249,240,0.15), transparent 70%);
+  animation: orbRotate 60s linear infinite;
+}
+
+.voice-orb::after {
+  content: '';
+  position: absolute;
+  inset: -8px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(201,168,76,0.06), transparent 70%);
+  pointer-events: none;
+}
+
+.voice-orb--active {
+  animation: none;
+  transform: scale(calc(1 + var(--vol, 0) * 0.18));
+  box-shadow: 0 0 calc(40px + var(--vol, 0) * 50px) rgba(201,168,76, calc(0.15 + var(--vol, 0) * 0.35));
+  transition: transform 0.08s ease-out, box-shadow 0.08s ease-out;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .chat-bubble--bot,
   .chat-bubble--user {
     animation: none !important;
+  }
+
+  .voice-orb,
+  .voice-orb::before,
+  .voice-orb::after {
+    animation: none !important;
+    transition: none !important;
   }
 }
 
