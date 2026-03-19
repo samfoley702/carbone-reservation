@@ -6,28 +6,10 @@ import { ReservationData } from "@/types/reservation";
 import ChatEngine from "./ChatEngine";
 import TalkOrTypeScreen from "./TalkOrTypeScreen";
 
-// VoiceAgent loaded lazily — keeps ElevenLabs SDK out of the initial bundle
+// VoiceOrbModal loaded lazily — keeps ElevenLabs SDK out of the initial bundle
 // and avoids SSR errors from WebRTC/AudioContext APIs
-const VoiceAgent = dynamic(() => import("./VoiceAgent"), {
+const VoiceOrbModal = dynamic(() => import("./VoiceOrbModal"), {
   ssr: false,
-  loading: () => (
-    <div
-      style={{
-        display: "flex",
-        flex: 1,
-        alignItems: "center",
-        justifyContent: "center",
-        background: "var(--bg-elevated)",
-        color: "var(--cream-muted)",
-        fontFamily: "var(--font-oswald), sans-serif",
-        fontSize: "0.55rem",
-        letterSpacing: "0.2em",
-        textTransform: "uppercase",
-      }}
-    >
-      Connecting…
-    </div>
-  ),
 });
 
 type ChatMode = null | "type" | "talk";
@@ -70,9 +52,11 @@ export default function ChatWidget() {
     setMode("type");
   };
 
+  const voiceModalOpen = isOpen && mode === "talk";
+
   return (
     <>
-      {/* Floating action button */}
+      {/* Floating action button — hidden when voice modal is open */}
       <button
         ref={fabRef}
         onClick={() => (isOpen ? handleClose() : handleOpen())}
@@ -95,16 +79,16 @@ export default function ChatWidget() {
           padding: "0.75rem 1.5rem",
           cursor: "pointer",
           whiteSpace: "nowrap",
-          opacity: fabVisible ? 1 : 0,
-          transform: fabVisible ? "translateY(0)" : "translateY(8px)",
-          pointerEvents: fabVisible ? "auto" : "none",
+          opacity: fabVisible && !voiceModalOpen ? 1 : 0,
+          transform: fabVisible && !voiceModalOpen ? "translateY(0)" : "translateY(8px)",
+          pointerEvents: fabVisible && !voiceModalOpen ? "auto" : "none",
           transition: "opacity 0.4s ease, transform 0.4s ease",
         }}
       >
         {isOpen ? "✕ Close" : "Concierge"}
       </button>
 
-      {/* Chat popup panel */}
+      {/* Chat popup panel — hidden when voice modal is open */}
       <div
         id="chat-popup"
         role="dialog"
@@ -120,14 +104,14 @@ export default function ChatWidget() {
           maxHeight: "80dvh",
           background: "var(--bg)",
           border: "1px solid var(--border)",
-          display: "flex",
+          display: voiceModalOpen ? "none" : "flex",
           flexDirection: "column",
           overflow: "hidden",
           transformOrigin: "bottom right",
           transition: "opacity 0.25s ease, transform 0.25s cubic-bezier(0.16, 1, 0.3, 1)",
-          opacity: isOpen ? 1 : 0,
-          transform: isOpen ? "scale(1)" : "scale(0.95)",
-          pointerEvents: isOpen ? "auto" : "none",
+          opacity: isOpen && !voiceModalOpen ? 1 : 0,
+          transform: isOpen && !voiceModalOpen ? "scale(1)" : "scale(0.95)",
+          pointerEvents: isOpen && !voiceModalOpen ? "auto" : "none",
         }}
         className="chat-popup-panel"
       >
@@ -203,13 +187,15 @@ export default function ChatWidget() {
         {isOpen && mode === "type" && (
           <ChatEngine onClose={handleClose} initialData={partialData} />
         )}
-        {isOpen && mode === "talk" && (
-          <VoiceAgent
-            onClose={handleClose}
-            onSwitchToType={handleSwitchToType}
-          />
-        )}
       </div>
+
+      {/* Voice orb modal — full-screen overlay, rendered outside chat panel */}
+      {voiceModalOpen && (
+        <VoiceOrbModal
+          onClose={handleClose}
+          onSwitchToType={handleSwitchToType}
+        />
+      )}
 
       <style>{`
         @media (min-width: 640px) {

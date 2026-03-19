@@ -1,6 +1,6 @@
 "use client";
 
-import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { memo, useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState } from "react";
 import { useConversation } from "@elevenlabs/react";
 import { z } from "zod";
 import { ReservationData, LOCATIONS } from "@/types/reservation";
@@ -126,14 +126,21 @@ const StatusBubble = memo(function StatusBubble({
 
 // ── Props ─────────────────────────────────────────────────────────────────────
 
+export interface VoiceAgentHandle {
+  getInputVolume: () => number;
+  getOutputVolume: () => number;
+}
+
 interface VoiceAgentProps {
   onClose: () => void;
   onSwitchToType: (data: Partial<ReservationData>) => void;
+  onSpeakingChange?: (isSpeaking: boolean) => void;
+  handleRef?: React.RefObject<VoiceAgentHandle | null>;
 }
 
 // ── Main Component ────────────────────────────────────────────────────────────
 
-export default function VoiceAgent({ onClose, onSwitchToType }: VoiceAgentProps) {
+export default function VoiceAgent({ onClose, onSwitchToType, onSpeakingChange, handleRef }: VoiceAgentProps) {
   const [voiceState, setVoiceState] = useState<VoiceState>({ status: "idle" });
   const [messages, setMessages] = useState<TranscriptMsg[]>([]);
 
@@ -252,6 +259,19 @@ export default function VoiceAgent({ onClose, onSwitchToType }: VoiceAgentProps)
     onMessage: onMessageCb,
     clientTools,
   });
+
+  // ── Expose volume methods to parent via ref ─────────────────────────────────
+
+  useImperativeHandle(handleRef, () => ({
+    getInputVolume: () => conversation.getInputVolume(),
+    getOutputVolume: () => conversation.getOutputVolume(),
+  }), [conversation]);
+
+  // ── Notify parent of speaking state changes ────────────────────────────────
+
+  useEffect(() => {
+    onSpeakingChange?.(conversation.isSpeaking);
+  }, [conversation.isSpeaking, onSpeakingChange]);
 
   // ── Safe endSession guard (prevents double-close) ─────────────────────────
 
