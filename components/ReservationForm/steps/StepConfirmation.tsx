@@ -20,20 +20,13 @@ export default function StepConfirmation({ data, onSubmit, submitting, submitted
     });
   };
 
-  const formatTime = (slot: string | null) => {
-    if (slot === "early") return "Early (5:30 – 7:00 PM)";
-    if (slot === "prime") return "Prime (7:00 – 9:00 PM)";
-    if (slot === "late") return "Late (9:00 – 11:00 PM)";
-    return "—";
-  };
-
   const rows = [
     { label: "Guest", value: `${data.firstName} ${data.lastName}` },
     { label: "Phone", value: data.phone },
     { label: "Location", value: `Carbone ${data.location}` },
     { label: "Date", value: formatDate(data.date) },
     { label: "Party", value: `${data.partySize} guest${data.partySize !== 1 ? "s" : ""}` },
-    { label: "Time", value: formatTime(data.timeSlot) },
+    { label: "Time", value: data.preferredTime || "—" },
     ...(data.specialNote ? [{ label: "Notes", value: data.specialNote }] : []),
   ];
 
