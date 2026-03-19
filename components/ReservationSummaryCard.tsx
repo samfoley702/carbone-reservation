@@ -1,7 +1,7 @@
 "use client";
 
 import { memo } from "react";
-import { ReservationData, TIME_SLOTS } from "@/types/reservation";
+import { ReservationData } from "@/types/reservation";
 
 export interface SummaryRow {
   label: string;
@@ -20,15 +20,10 @@ function formatDate(d: Date | string | null): string {
   });
 }
 
-function formatTimeSlot(slot: string | null): string {
-  const found = TIME_SLOTS.find((s) => s.id === slot);
-  return found ? `${found.label} — ${found.hours}` : "—";
-}
-
 export function buildReviewRows(
   data: Pick<ReservationData, "firstName" | "lastName" | "phone" | "location" | "partySize"> & {
     date: Date | string | null;
-    timeSlot: string | null;
+    preferredTime: string | null;
     specialNote?: string;
   }
 ): SummaryRow[] {
@@ -38,7 +33,7 @@ export function buildReviewRows(
     { label: "Location", value: `Carbone ${data.location}` },
     { label: "Date", value: formatDate(data.date) },
     { label: "Party", value: `${data.partySize} guest${data.partySize !== 1 ? "s" : ""}` },
-    { label: "Time", value: formatTimeSlot(data.timeSlot) },
+    { label: "Time", value: data.preferredTime || "—" },
     ...(data.specialNote ? [{ label: "Notes", value: data.specialNote }] : []),
   ];
 }
