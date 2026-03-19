@@ -1,10 +1,7 @@
 "use client";
 
-interface HeroProps {
-  onReserveClick?: () => void;
-}
-
-export default function Hero({ onReserveClick }: HeroProps) {
+export default function Hero() {
+  const onReserveClick = () => window.dispatchEvent(new CustomEvent("open-concierge"));
   return (
     <section
       className="relative flex items-center justify-center overflow-hidden"

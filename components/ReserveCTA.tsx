@@ -1,10 +1,7 @@
 "use client";
 
-interface ReserveCTAProps {
-  onReserveClick?: () => void;
-}
-
-export default function ReserveCTA({ onReserveClick }: ReserveCTAProps) {
+export default function ReserveCTA() {
+  const onReserveClick = () => window.dispatchEvent(new CustomEvent("open-concierge"));
   return (
     <section
       style={{

@@ -1,6 +1,6 @@
 "use client";
 
-import { memo, useCallback, useEffect, useRef, useState } from "react";
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useConversation } from "@elevenlabs/react";
 import { z } from "zod";
 import { ReservationData, LOCATIONS } from "@/types/reservation";
@@ -31,15 +31,23 @@ type TranscriptMsg = {
 const VALID_CITIES = LOCATIONS.map((l) => l.city) as [string, ...string[]];
 
 const SubmitReservationSchema = z.object({
-  firstName: z.string().min(1),
-  lastName: z.string().min(1),
+  firstName: z.string().min(1).max(100),
+  lastName: z.string().min(1).max(100),
   phone: z.string().regex(/^[\+]?[\d\s\-\(\)]{10,}$/).max(30),
   location: z.enum(VALID_CITIES),
   date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
   partySize: z.number().int().min(1).max(20),
   timeSlot: z.enum(["early", "prime", "late"]),
-  specialNote: z.string().optional(),
+  specialNote: z.string().max(1000).optional(),
 });
+
+// ── Static constants ──────────────────────────────────────────────────────────
+
+const loadingLabel: Record<string, string> = {
+  "requesting-mic": "Requesting microphone…",
+  "fetching-session": "Connecting to concierge…",
+  connecting: "Connecting to concierge…",
+};
 
 // ── Speaking indicator (isolated so isSpeaking changes don't re-render transcript) ──
 
@@ -87,6 +95,35 @@ const TranscriptBubble = memo(function TranscriptBubble({ msg }: { msg: Transcri
   );
 });
 
+// ── Status bubble (agent-side messages for non-transcript states) ─────────────
+
+const StatusBubble = memo(function StatusBubble({
+  children,
+  maxWidth = "85%",
+}: {
+  children: React.ReactNode;
+  maxWidth?: string;
+}) {
+  return (
+    <div
+      className="chat-bubble--bot"
+      style={{
+        maxWidth,
+        alignSelf: "flex-start",
+        padding: "0.6rem 0.875rem",
+        borderRadius: "4px",
+        fontFamily: "var(--font-cormorant), Georgia, serif",
+        fontSize: "1rem",
+        color: "var(--cream)",
+        lineHeight: 1.45,
+        animation: "bubbleIn 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards",
+      }}
+    >
+      {children}
+    </div>
+  );
+});
+
 // ── Props ─────────────────────────────────────────────────────────────────────
 
 interface VoiceAgentProps {
@@ -104,103 +141,119 @@ export default function VoiceAgent({ onClose, onSwitchToType }: VoiceAgentProps)
   const isMountedRef = useRef(true);
   const sessionEndedRef = useRef(false);
   const isInitiatingRef = useRef(false);
-  const micStreamRef = useRef<MediaStream | null>(null);
   const submissionAbortRef = useRef<AbortController | null>(null);
   const sessionFetchAbortRef = useRef<AbortController | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
   // Accumulated partial data from voice session (for Talk→Type carry-over)
   const partialDataRef = useRef<Partial<ReservationData>>({});
-  const msgCounter = useRef(0);
 
-  // ── Safe endSession guard (prevents double-close) ─────────────────────────
+  // ── Stable ref for safeEndSession (breaks forward-reference in clientTools) ──
+
+  // safeEndSession depends on `conversation`, which isn't available until after
+  // useConversation runs. We use a ref so clientTools can always call the latest
+  // version without capturing a stale closure or creating a circular dependency.
+  const safeEndSessionRef = useRef<() => Promise<void>>(async () => {});
+
+  // ── Stable callbacks for useConversation ─────────────────────────────────
+  // Defined before useConversation so the hook receives referentially stable
+  // config across renders, preventing mid-session hook re-initialization.
+
+  const onConnectCb = useCallback(() => {
+    if (!isMountedRef.current) return;
+    setVoiceState({ status: "connected" });
+  }, []);
+
+  const onDisconnectCb = useCallback((details: { reason: string }) => {
+    // NEVER call endSession() here — causes WebSocket double-close error
+    if (!isMountedRef.current) return;
+    if (details.reason === "error") {
+      setVoiceState({
+        status: "error",
+        message: "Connection lost. Try again or switch to typing.",
+      });
+    }
+    // reason === "user" → we called endSession, no UI change needed
+    // reason === "agent" → agent ended cleanly (after submitReservation)
+  }, []);
+
+  const onErrorCb = useCallback((message: string) => {
+    if (!isMountedRef.current) return;
+    setVoiceState({ status: "error", message: message || "Connection error. Please try again." });
+  }, []);
+
+  const onMessageCb = useCallback(({ message, role }: { message: string; role: string }) => {
+    if (!isMountedRef.current) return;
+    // Functional updater avoids stale closure; use prev.length for stable unique IDs
+    setMessages((prev) => [
+      ...prev,
+      {
+        id: `${role}-${prev.length}`,
+        role: role as "user" | "agent",
+        text: message,
+      },
+    ]);
+  }, []);
+
+  const submitReservationTool = useCallback(async (params: unknown): Promise<string> => {
+    // Validate agent-supplied params before trusting them
+    const parsed = SubmitReservationSchema.safeParse(params);
+    if (!parsed.success) {
+      return "Validation failed. Please ask the guest to provide the details again.";
+    }
+
+    if (!isMountedRef.current) return "Component unmounted.";
+
+    setVoiceState({ status: "submitting" });
+
+    const abortController = new AbortController();
+    submissionAbortRef.current = abortController;
+
+    try {
+      const res = await fetch("/api/reservations", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(parsed.data),
+        signal: abortController.signal,
+      });
+
+      if (!res.ok) throw new Error("Server error");
+
+      // Store for carry-over in case user switches to Type afterward
+      partialDataRef.current = coercePartialData(parsed.data as Record<string, unknown>);
+
+      if (!isMountedRef.current) return "Component unmounted.";
+      setVoiceState({ status: "success" });
+      await safeEndSessionRef.current();
+      return "Reservation submitted successfully.";
+    } catch (err) {
+      if ((err as Error).name === "AbortError") return "Submission cancelled.";
+      if (!isMountedRef.current) return "Component unmounted.";
+      setVoiceState({
+        status: "error",
+        message: "Something went wrong submitting. Try again or switch to typing.",
+      });
+      return "Submission failed. Please inform the guest and try again.";
+    }
+  }, []);
+
+  const clientTools = useMemo(
+    () => ({ submitReservation: submitReservationTool }),
+    [submitReservationTool]
+  );
+
+  // ── ElevenLabs conversation hook ──────────────────────────────────────────
 
   const conversation = useConversation({
     preferHeadphonesForIosDevices: true,
     connectionDelay: { android: 3000, ios: 0, default: 0 },
-
-    onConnect: () => {
-      if (!isMountedRef.current) return;
-      setVoiceState({ status: "connected" });
-    },
-
-    onDisconnect: (details) => {
-      // NEVER call endSession() here — causes WebSocket double-close error
-      if (!isMountedRef.current) return;
-      if (details.reason === "error") {
-        setVoiceState({
-          status: "error",
-          message: "Connection lost. Try again or switch to typing.",
-        });
-      }
-      // reason === "user" → we called endSession, no UI change needed
-      // reason === "agent" → agent ended cleanly (after submitReservation)
-    },
-
-    onError: (message) => {
-      if (!isMountedRef.current) return;
-      setVoiceState({ status: "error", message: message || "Connection error. Please try again." });
-    },
-
-    onMessage: ({ message, role }) => {
-      if (!isMountedRef.current) return;
-      msgCounter.current += 1;
-      // Functional updater avoids stale closure
-      setMessages((prev) => [
-        ...prev,
-        {
-          id: `${role}-${msgCounter.current}`,
-          role: role as "user" | "agent",
-          text: message,
-        },
-      ]);
-    },
-
-    clientTools: {
-      submitReservation: async (params: unknown): Promise<string> => {
-        // Validate agent-supplied params before trusting them
-        const parsed = SubmitReservationSchema.safeParse(params);
-        if (!parsed.success) {
-          return "Validation failed. Please ask the guest to provide the details again.";
-        }
-
-        if (!isMountedRef.current) return "Component unmounted.";
-
-        setVoiceState({ status: "submitting" });
-
-        const abortController = new AbortController();
-        submissionAbortRef.current = abortController;
-
-        try {
-          const res = await fetch("/api/reservations", {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify(parsed.data),
-            signal: abortController.signal,
-          });
-
-          if (!res.ok) throw new Error("Server error");
-
-          // Store for carry-over in case user switches to Type afterward
-          partialDataRef.current = coercePartialData(parsed.data as Record<string, unknown>);
-
-          if (!isMountedRef.current) return "Component unmounted.";
-          setVoiceState({ status: "success" });
-          await safeEndSession();
-          return "Reservation submitted successfully.";
-        } catch (err) {
-          if ((err as Error).name === "AbortError") return "Submission cancelled.";
-          if (!isMountedRef.current) return "Component unmounted.";
-          setVoiceState({
-            status: "error",
-            message: "Something went wrong submitting. Try again or switch to typing.",
-          });
-          return "Submission failed. Please inform the guest and try again.";
-        }
-      },
-    },
+    onConnect: onConnectCb,
+    onDisconnect: onDisconnectCb,
+    onError: onErrorCb,
+    onMessage: onMessageCb,
+    clientTools,
   });
+
+  // ── Safe endSession guard (prevents double-close) ─────────────────────────
 
   const safeEndSession = useCallback(async () => {
     if (sessionEndedRef.current) return;
@@ -212,6 +265,11 @@ export default function VoiceAgent({ onClose, onSwitchToType }: VoiceAgentProps)
     }
   }, [conversation]);
 
+  // Keep ref in sync so clientTools always calls the latest version
+  useEffect(() => {
+    safeEndSessionRef.current = safeEndSession;
+  }, [safeEndSession]);
+
   // ── Auto-scroll ───────────────────────────────────────────────────────────
 
   useEffect(() => {
@@ -221,15 +279,13 @@ export default function VoiceAgent({ onClose, onSwitchToType }: VoiceAgentProps)
   // ── Cleanup on unmount ────────────────────────────────────────────────────
 
   useEffect(() => {
-    isMountedRef.current = true;
     return () => {
       isMountedRef.current = false;
-      micStreamRef.current?.getTracks().forEach((t) => t.stop());
       submissionAbortRef.current?.abort();
       sessionFetchAbortRef.current?.abort();
-      safeEndSession();
+      safeEndSessionRef.current();
     };
-  }, [safeEndSession]);
+  }, []); // Empty deps — all cleanup uses refs, not closures
 
   // ── Start talk session (serialized: mic → URL → connect) ─────────────────
 
@@ -239,10 +295,12 @@ export default function VoiceAgent({ onClose, onSwitchToType }: VoiceAgentProps)
     isInitiatingRef.current = true;
 
     // Step 1: Request mic FIRST (iOS Safari requires direct user gesture)
+    // Release immediately after — ElevenLabs acquires the mic itself in startSession.
+    // Holding the stream open conflicts with ElevenLabs' own getUserMedia call.
     setVoiceState({ status: "requesting-mic" });
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      micStreamRef.current = stream;
+      stream.getTracks().forEach((t) => t.stop());
     } catch (err) {
       if (!isMountedRef.current) return;
       const name = (err as Error).name;
@@ -290,8 +348,6 @@ export default function VoiceAgent({ onClose, onSwitchToType }: VoiceAgentProps)
   // ── Retry (cleans up previous attempt first) ──────────────────────────────
 
   const handleRetry = useCallback(async () => {
-    micStreamRef.current?.getTracks().forEach((t) => t.stop());
-    micStreamRef.current = null;
     sessionFetchAbortRef.current?.abort();
     sessionEndedRef.current = false;
     isInitiatingRef.current = false;
@@ -322,12 +378,6 @@ export default function VoiceAgent({ onClose, onSwitchToType }: VoiceAgentProps)
     voiceState.status === "requesting-mic" ||
     voiceState.status === "fetching-session" ||
     voiceState.status === "connecting";
-
-  const loadingLabel: Record<string, string> = {
-    "requesting-mic": "Requesting microphone…",
-    "fetching-session": "Connecting to concierge…",
-    connecting: "Connecting to concierge…",
-  };
 
   // ── Render ────────────────────────────────────────────────────────────────
 
@@ -372,40 +422,12 @@ export default function VoiceAgent({ onClose, onSwitchToType }: VoiceAgentProps)
 
         {/* Idle state — prompt to start */}
         {voiceState.status === "idle" && (
-          <div
-            className="chat-bubble--bot"
-            style={{
-              maxWidth: "85%",
-              alignSelf: "flex-start",
-              padding: "0.6rem 0.875rem",
-              borderRadius: "4px",
-              fontFamily: "var(--font-cormorant), Georgia, serif",
-              fontSize: "1rem",
-              color: "var(--cream)",
-              lineHeight: 1.45,
-              animation: "bubbleIn 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards",
-            }}
-          >
-            Tap the button below to speak with our voice concierge.
-          </div>
+          <StatusBubble>Tap the button below to speak with our voice concierge.</StatusBubble>
         )}
 
         {/* Mic denied */}
         {voiceState.status === "mic-denied" && (
-          <div
-            className="chat-bubble--bot"
-            style={{
-              maxWidth: "90%",
-              alignSelf: "flex-start",
-              padding: "0.75rem 0.875rem",
-              borderRadius: "4px",
-              fontFamily: "var(--font-cormorant), Georgia, serif",
-              fontSize: "1rem",
-              color: "var(--cream)",
-              lineHeight: 1.5,
-              animation: "bubbleIn 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards",
-            }}
-          >
+          <StatusBubble maxWidth="90%">
             Microphone access was denied.{" "}
             <button
               onClick={handleSwitchToType}
@@ -413,27 +435,12 @@ export default function VoiceAgent({ onClose, onSwitchToType }: VoiceAgentProps)
             >
               Switch to typing →
             </button>
-          </div>
+          </StatusBubble>
         )}
 
         {/* Error */}
         {voiceState.status === "error" && (
-          <div
-            className="chat-bubble--bot"
-            style={{
-              maxWidth: "90%",
-              alignSelf: "flex-start",
-              padding: "0.75rem 0.875rem",
-              borderRadius: "4px",
-              fontFamily: "var(--font-cormorant), Georgia, serif",
-              fontSize: "1rem",
-              color: "var(--cream)",
-              lineHeight: 1.5,
-              animation: "bubbleIn 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards",
-            }}
-          >
-            {voiceState.message}
-          </div>
+          <StatusBubble maxWidth="90%">{voiceState.message}</StatusBubble>
         )}
 
         {/* Transcript bubbles */}
@@ -443,21 +450,10 @@ export default function VoiceAgent({ onClose, onSwitchToType }: VoiceAgentProps)
 
         {/* Success bubble */}
         {voiceState.status === "success" && (
-          <div
-            className="chat-bubble--bot"
-            style={{
-              maxWidth: "85%",
-              alignSelf: "flex-start",
-              padding: "0.75rem 0.875rem",
-              borderRadius: "4px",
-              animation: "bubbleIn 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards",
-            }}
-          >
+          <StatusBubble>
             <span style={{ color: "var(--gold)", marginRight: "0.5rem" }}>✦</span>
-            <span style={{ fontFamily: "var(--font-cormorant), Georgia, serif", fontSize: "1rem", color: "var(--cream)" }}>
-              We&apos;ve received your request. Our concierge will be in touch within 24 hours.
-            </span>
-          </div>
+            <span>We&apos;ve received your request. Our concierge will be in touch within 24 hours.</span>
+          </StatusBubble>
         )}
 
         <div ref={bottomRef} />
@@ -506,7 +502,7 @@ export default function VoiceAgent({ onClose, onSwitchToType }: VoiceAgentProps)
 
           {isConnected && (
             <button
-              onClick={() => safeEndSession()}
+              onClick={safeEndSession}
               style={{
                 width: "100%",
                 fontSize: "0.65rem",

@@ -49,6 +49,13 @@ export default function ChatWidget() {
     return () => window.removeEventListener("scroll", onScroll);
   }, []);
 
+  // Allow other components to open the chat via a custom event
+  useEffect(() => {
+    const openFromEvent = () => setIsOpen(true);
+    window.addEventListener("open-concierge", openFromEvent);
+    return () => window.removeEventListener("open-concierge", openFromEvent);
+  }, []);
+
   const handleOpen = () => setIsOpen(true);
 
   const handleClose = () => {
