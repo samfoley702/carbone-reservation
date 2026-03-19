@@ -8,7 +8,7 @@ import { normalizeLocation } from "@/lib/normalizeLocation";
  * Validates all values against the same constraints as the API route:
  * - location must be in the LOCATIONS allowlist
  * - date must be YYYY-MM-DD and convert to a valid Date
- * - timeSlot must be "early" | "prime" | "late"
+ * - preferredTime must be in the PREFERRED_TIMES allowlist
  */
 export function coercePartialData(
   raw: Partial<Record<string, unknown>> | undefined
