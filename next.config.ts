@@ -19,6 +19,8 @@ const nextConfig: NextConfig = {
               "font-src 'self'",
               "img-src 'self' data: https://cdn.sanity.io",
               "connect-src 'self' wss://*.elevenlabs.io https://*.elevenlabs.io",
+              "media-src 'self' blob:",
+              "worker-src 'self' blob:",
             ].join("; "),
           },
         ],
